@@ -1,0 +1,16 @@
+[package]
+name = "arp-scan-lib"
+description = "Library for performing ARP scans in a network, powering arp-scan-rs"
+version = "0.15.1"
+edition = "2021"
+keywords = ["arp", "scan", "network", "security"]
+categories = ["network-programming"]
+
+
+[dependencies]
+dns-lookup = "3.0"
+pnet_datalink = "0.35"
+csv = "1.4"
+ipnetwork = "0.20"
+pnet = "0.35"
+rand = "0.9"
