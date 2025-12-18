@@ -1,8 +1,8 @@
 [package]
 name = "pathfinder"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Network topology mapper for pentesting."
+authors = ["Oscar Urselli"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -26,3 +26,4 @@ pnet = "0.35.0"
 pnet_datalink = "0.35.0"
 duckdb = { version = "1.4.2", features = ["bundled"] }
 arp-scan-lib = { workspace = true }
+uuid = { version = "1.19.0", features = ["v7"] }
