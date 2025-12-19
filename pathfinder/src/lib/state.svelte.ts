@@ -1,3 +1,3 @@
-export const loadedReport: {
+export const loadedReport = $state<{
     report?: ReportType
-} = $state({});
+}>({});

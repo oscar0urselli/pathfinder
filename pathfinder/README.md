@@ -10,10 +10,10 @@ This template should help get you started developing with Tauri, SvelteKit and T
 ## CAP_NET_RAW
 During development:
 ```sh
-sudo setcap cap_net_raw=pe ./target/debug/pathfiner
+sudo setcap cap_net_raw=pe ./target/debug/pathfinder
 ```
 
 During production:
 ```sh
-sudo setcap cap_net_raw=pe ./target/release/pathfiner
+sudo setcap cap_net_raw=pe ./target/release/pathfinder
 ```

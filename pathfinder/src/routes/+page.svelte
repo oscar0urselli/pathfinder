@@ -2,6 +2,7 @@
     import Toast from "$lib/components/Toast.svelte";
     import { loadedReport } from "$lib/state.svelte";
     import { invoke } from "@tauri-apps/api/core";
+    import { onMount } from "svelte";
     import { z } from "zod/v4";
     
     
@@ -26,6 +27,7 @@
             const data: ReportType = await invoke("new_report", { report: result.data });
             toast.show("success", "New report created", `New report '${newReportTitle}' has been created and loaded.`);
             loadedReport.report = data;
+            
         }
         else {
             toast.show("danger", "New report failed", `${result.error}`);
@@ -42,14 +44,13 @@
     }
     
     async function loadReport(event: any) {
-        const data: number = await invoke("update_access_tsz_report", { id: selectedReport });
-        loadedReport.report = reports.find((v) => v.id === selectedReport);
-        if (loadedReport.report) {
-            loadedReport.report.last_access_tsz = data;
+        try {
+            const data: ReportType = await invoke("load_report", { id: selectedReport });
+            loadedReport.report = data;
             toast.show("success", "Report loaded", `Report with ID '${selectedReport}' has been loaded.`);
         }
-        else {
-            toast.show("danger", "Report loading failed", `Couldn't load report with ID '${selectedReport}'.`);
+        catch (error) {
+            toast.show("danger", "Report loading failed", `Couldn't load report with ID '${selectedReport}'. ${error}`);
         }
     }
     
@@ -61,6 +62,10 @@
     let newReportAuthor = $state("");
     let newReportDevice = $state("");
     let newReportPlace = $state("");
+    
+    onMount(async () => {
+        loadedReport.report = await invoke("get_loaded_report");
+    });
 </script>
 
 <div class="position-absolute top-50 start-50 translate-middle">
@@ -130,7 +135,7 @@
             <div class="modal-body">
                 <div class="list-group">
                     {#each reports as r}
-                        <button onclick={selectReport} value={r.id} type="button" class="list-group-item list-group-item-action {selectedReport === r.id ? "active" : ""}">
+                        <button onclick={selectReport} value={r.id} type="button" class="list-group-item list-group-item-action {selectedReport === r.id || (selectedReport === null && loadedReport.report?.id === r.id) ? "active" : ""}">
                             <div class="d-flex w-100 justify-content-between">
                                 <h5 class="mb-1">{r.title}</h5>
                                 <small>{new Date(r.last_access_tsz / 1000).toLocaleString()}</small>

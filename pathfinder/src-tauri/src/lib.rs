@@ -13,11 +13,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            report::get_loaded_report,
             report::new_report,
             report::list_reports,
-            report::update_access_tsz_report,
+            report::load_report,
             arp_scan::arp_scan_info,
-            arp_scan::arp_scan
+            arp_scan::arp_scan,
+            arp_scan::get_arp_scans,
+            arp_scan::get_arps
         ])
         .setup(|app| {
             if !app.path().app_local_data_dir().unwrap().join("duckdb").exists() {
@@ -31,12 +34,15 @@ pub fn run() {
                 Err(err) => println!("Table 'reports' not created: {}", err)
             };
             
-            let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp_scans (id UUID PRIMARY KEY, report UUID, arp_count UINT64, duration_ms UINT128, packet_count UINT64, interface STRING, network STRING, timeout UINT64, interval UINT64, retry UINT64, src_ip STRING, src_mac STRING, dst_mac STRING, vlan_id UINT16);", params![]);
+            let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp_scans (id UUID PRIMARY KEY, report UUID, arp_count UINT64, duration_ms UINT64, packet_count UINT64, interface STRING, network STRING, timeout UINT64, interval UINT64, retry UINT64, src_ip STRING, src_mac STRING, dst_mac STRING, vlan_id UINT16);", params![]);
             
             let _ = conn.execute("CREATE SEQUENCE id_sequence_arp START 1;", []);
             let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp (id UINT64 PRIMARY KEY DEFAULT nextval('id_sequence_arp'), ipv4 STRING, mac STRING, hostname STRING, vendor STRING, scan UUID);", params![]);
             
             app.manage(Arc::new(Mutex::new(conn)));
+            
+            let loaded_report: Option<report::Report> = None; 
+            app.manage(Arc::new(Mutex::new(loaded_report)));
 
             Ok(())
         })

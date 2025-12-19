@@ -3,6 +3,11 @@
     import { onMount } from "svelte";
     import { z } from "zod/v4";
     import { invoke } from "@tauri-apps/api/core";
+    import { loadedReport } from "$lib/state.svelte";
+    import Toast from "$lib/components/Toast.svelte";
+    import type { ArpScanInfo } from "$lib/schema";
+    
+    let toast: Toast;
     
     const arpSettingsSchema = z.object({
         interface: z.string(),
@@ -40,7 +45,13 @@
             vlan_id: arpScanVlanId
         });
         if (result.success) {
-            await invoke("arp_scan", { settings: result.data });
+            try {
+                await invoke("arp_scan", { settings: result.data, reportId: loadedReport.report?.id });
+                toast.show("success", "ARP scan completed", "ARP scan terminated and the results are available.");
+            }
+            catch (error) {
+                toast.show("danger", "ARP scan failed", `ARP scan did not complete successfully: ${error}`);
+            }
         }
         else {
             console.log(result.error);
@@ -57,7 +68,8 @@
     let arpScanSrcIp = $state("127.0.0.1");
     let arpScanSrcMac = $state("00:00:00:00:00:00");
     let arpScanDstMac = $state("00:00:00:00:00:00");
-    onMount(async () => {   
+    onMount(async () => {
+        loadedReport.report = await invoke("get_loaded_report");
         arpScanInfo = await invoke("arp_scan_info");
       
         let cy = cytoscape({
@@ -106,7 +118,7 @@
 
 
 <!-- ARP Settings -->
-<div class="modal" id="arp-settings" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="arp-settings" data-bs-backdrop="static" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -122,7 +134,7 @@
                         {/each}
                     </select>
                 </div>
-                <div class="col mb-3">
+                <div class="mb-3">
                     <label for="arp-network-range" class="form-label">IPv4 range</label>
                     <input name="network" pattern="(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:3[0-2]|2[0-9]|1[0-9]|[0]?[0-9])" bind:value={arpScanNetwork} type="text" class="form-control" id="arp-network-range">
                 </div>
@@ -156,7 +168,7 @@
                         <input name="src_mac" pattern="(([0-9A-Fa-f]{2}[-:]){5}[0-9A-Fa-f]{2})|(([0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4})" bind:value={arpScanSrcMac} type="text" class="form-control" id="arp-src-mac">
                     </div>    
                 </div>
-                <div class="col mb-3">
+                <div class="mb-3">
                     <label for="arp-dst-mac" class="form-label">Destination MAC</label>
                     <input name="dst_mac" pattern="(([0-9A-Fa-f]{2}[-:]){5}[0-9A-Fa-f]{2})|(([0-9A-Fa-f]{4}\.){2}[0-9A-Fa-f]{4})" bind:value={arpScanDstMac} type="text" class="form-control" id="arp-dst-mac">
                 </div>
@@ -167,3 +179,5 @@
         </div>
     </div>
 </div>
+
+<Toast bind:this={toast} />

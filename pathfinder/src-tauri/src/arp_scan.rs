@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 
 use arp_scan_lib::scan_options::ScanOptions;
 use serde::{Deserialize, Serialize};
-use duckdb;
+use duckdb::{self, ParamsFromIter, params};
+
+use crate::report::Report;
 
 
 const REQUEST_MS_INTERVAL: u64 = 10;
@@ -16,6 +18,24 @@ const TIMEOUT_MS_DEFAULT: u64 = 2000;
 
 #[derive(Serialize, Deserialize)]
 pub struct ArpScanSettings {
+    interface: String,
+    network: String,
+    timeout: u64,
+    interval: u32,
+    retry: u32,
+    src_ip: String,
+    src_mac: String,
+    dst_mac: String,
+    vlan_id: Option<u16>
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ArpScan {
+    id: String,
+    report: String,
+    arp_count: u64,
+    duration_ms: u64,
+    packet_count: u64,
     interface: String,
     network: String,
     timeout: u64,
@@ -46,6 +66,16 @@ pub struct ArpScanInfo {
     interfaces: Vec<ArpScanInterface>
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Arp {
+    id: u64,
+    ipv4: String,
+    mac: String,
+    hostname: Option<String>,
+    vendor: Option<String>,
+    scan: String
+}
+
 #[tauri::command]
 pub fn arp_scan_info() -> ArpScanInfo {
     ArpScanInfo {
@@ -65,9 +95,16 @@ pub fn arp_scan_info() -> ArpScanInfo {
 /// # Params:
 /// - *settings*: ArpScanSettings - Settings used fot ARP scan
 #[tauri::command(async)]
-pub fn arp_scan(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>, settings: ArpScanSettings) -> Result<String, String> {
+pub fn arp_scan(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>, loaded_report: tauri::State<Arc<Mutex<Option<Report>>>>, settings: ArpScanSettings) -> Result<(), String> {
     let conn_arc_clone = Arc::clone(&conn);
     let conn = conn_arc_clone.lock().unwrap().try_clone().unwrap();
+    
+    let loaded_report_arc_clone = Arc::clone(&loaded_report);
+    let loaded_report = loaded_report_arc_clone.lock().unwrap();
+    
+    if loaded_report.is_none() {
+        return Err("No report loaded. You must create and/or load a report first.".to_string());
+    }
     
     let interfaces = pnet_datalink::interfaces();
 
@@ -161,11 +198,107 @@ pub fn arp_scan(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>, settings: Ar
     
     let (response_summary, target_details) = arp_responses.join().unwrap();
     
+    let mut stmt = conn.prepare("INSERT INTO arp_scans (id, report, arp_count, duration_ms, packet_count, interface, network, timeout, interval, retry, src_ip, src_mac, dst_mac, vlan_id) VALUES (uuidv7(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;").unwrap();
+    let arp_scan_id = stmt.query_one(params![
+        loaded_report.as_ref().unwrap().id,
+        response_summary.arp_count,
+        response_summary.duration_ms as u64,
+        response_summary.packet_count,
+        settings.interface,
+        settings.network,
+        settings.timeout,
+        settings.interval,
+        settings.retry,
+        settings.src_ip,
+        settings.src_mac,
+        settings.dst_mac,
+        settings.vlan_id
+    ], |row| {
+        Ok(row.get::<usize, String>(0).unwrap())
+    }).unwrap();
+    
     // Save response data in the database
-    println!("Duration: {:?}    Packets: {:?}    Arp: {:?}", response_summary.duration_ms, response_summary.packet_count, response_summary.arp_count);
     for t in target_details {
-        println!("IP: {:?} Mac: {:?}", t.ipv4, t.mac);
+        conn.execute("INSERT INTO arp (scan, ipv4, mac, hostname, vendor) VALUES (?, ?, ?, ?, ?);", params![
+            arp_scan_id,
+            t.ipv4.to_string(),
+            t.mac.to_string(),
+            t.hostname,
+            t.vendor
+        ]).unwrap();
     }
     
-    Ok("Ok".to_string())
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_arp_scans(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>, loaded_report: tauri::State<Arc<Mutex<Option<Report>>>>) -> Result<Vec<ArpScan>, String> {
+    let conn_arc_clone = Arc::clone(&conn);
+    let conn = conn_arc_clone.lock().unwrap().try_clone().unwrap();
+    
+    let loaded_report_arc_clone = Arc::clone(&loaded_report);
+    let loaded_report = loaded_report_arc_clone.lock().unwrap();
+    
+    let (mut stmt, p) = match loaded_report.clone() {
+        Some(r) => (conn.prepare("SELECT * FROM arp_scans WHERE report = ?;").unwrap(), params![r.id.clone()]),
+        None => (conn.prepare("SELECT * FROM arp_scans;").unwrap(), params![])
+    };
+    let data = stmt.query_map(p, |row| {
+        Ok(ArpScan {
+            id: row.get(0).unwrap(),
+            report: row.get(1).unwrap(),
+            arp_count: row.get(2).unwrap(),
+            duration_ms: row.get(3).unwrap(),
+            packet_count: row.get(4).unwrap(),
+            interface: row.get(5).unwrap(),
+            network: row.get(6).unwrap(),
+            timeout: row.get(7).unwrap(),
+            interval: row.get(8).unwrap(),
+            retry: row.get(9).unwrap(),
+            src_ip: row.get(10).unwrap(),
+            src_mac: row.get(11).unwrap(),
+            dst_mac: row.get(12).unwrap(),
+            vlan_id: row.get(13).unwrap()
+        })
+    });
+    
+    match data {
+        Ok(d) => {
+            let mut v: Vec<ArpScan> = Vec::new();
+            for i in d {
+                v.push(i.unwrap());
+            }
+            Ok(v)
+        },
+        Err(err) => Err(err.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn get_arps(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>, scan_id: String) -> Result<Vec<Arp>, String> {
+    let conn_arc_clone = Arc::clone(&conn);
+    let conn = conn_arc_clone.lock().unwrap().try_clone().unwrap();
+    
+    let mut stmt = conn.prepare("SELECT * FROM arp WHERE scan = ?;").unwrap();
+    let data = stmt.query_map([scan_id], |row| {
+        Ok(Arp {
+            id: row.get(0).unwrap(),
+            ipv4: row.get(1).unwrap(),
+            mac: row.get(2).unwrap(),
+            hostname: row.get(3).unwrap(),
+            vendor: row.get(4).unwrap(),
+            scan: row.get(5).unwrap()
+        })
+    });
+    
+    match data {
+        Ok(d) => {
+            let mut v: Vec<Arp> = Vec::new();
+            for i in d {
+                v.push(i.unwrap());
+            }
+            Ok(v)
+        },
+        Err(err) => Err(err.to_string())
+    }
 }

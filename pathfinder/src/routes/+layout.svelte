@@ -7,13 +7,16 @@
     import scriptSrc from "bootstrap/dist/js/bootstrap.bundle.min.js?url";
     
 	import { onMount } from "svelte";
+    import { invoke } from "@tauri-apps/api/core";
     import { loadedReport } from "$lib/state.svelte";
 
 	let { children } = $props();
 
-	onMount(() => {
+	onMount(async () => {
 		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+		
+		loadedReport.report = await invoke("get_loaded_report");
 	});
 </script>
 
@@ -50,7 +53,7 @@
             </div>
             <div class="modal-body">
                 <p>ID: {loadedReport.report?.id}</p>
-                <p>Last access: {loadedReport.report?.last_access_tsz}</p>
+                <p>Last access: {new Date(loadedReport.report?.last_access_tsz / 1000).toLocaleString()}</p>
                 <p>Title: {loadedReport.report?.title}</p>
                 <p>Author: {loadedReport.report?.author}</p>
                 <p>Device: {loadedReport.report?.device}</p>
