@@ -1,5 +1,6 @@
 mod report;
 mod arp_scan;
+mod dns;
 
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -20,7 +21,9 @@ pub fn run() {
             arp_scan::arp_scan_info,
             arp_scan::arp_scan,
             arp_scan::get_arp_scans,
-            arp_scan::get_arps
+            arp_scan::get_arps,
+            dns::dns_query,
+            dns::get_dns_queries
         ])
         .setup(|app| {
             if !app.path().app_local_data_dir().unwrap().join("duckdb").exists() {
@@ -38,6 +41,8 @@ pub fn run() {
             
             let _ = conn.execute("CREATE SEQUENCE id_sequence_arp START 1;", []);
             let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp (id UINT64 PRIMARY KEY DEFAULT nextval('id_sequence_arp'), ipv4 STRING, mac STRING, hostname STRING, vendor STRING, scan UUID);", params![]);
+            
+            let _ = conn.execute("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY, report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING);", []);
             
             app.manage(Arc::new(Mutex::new(conn)));
             

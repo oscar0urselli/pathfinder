@@ -49,3 +49,19 @@ export type Arp = {
     vendor: string,
     scan: string
 };
+
+export type DnsQuery = {
+    id: string,
+    report: string,
+    host: string,
+    port: number,
+    protocol: string,
+    domain: string,
+    records: {
+        name: string,
+        rtype: string,
+        class: string,
+        ttl: number,
+        data: string
+    }[]
+};

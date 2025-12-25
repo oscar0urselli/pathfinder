@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use arp_scan_lib::scan_options::ScanOptions;
 use serde::{Deserialize, Serialize};
-use duckdb::{self, ParamsFromIter, params};
+use duckdb::{self, params};
 
 use crate::report::Report;
 
