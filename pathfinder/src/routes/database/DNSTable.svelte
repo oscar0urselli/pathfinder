@@ -15,7 +15,6 @@
     });
 </script>
 
-
 <div class="card p-2">
     <table class="table">
         <thead>

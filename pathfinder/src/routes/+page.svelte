@@ -1,12 +1,11 @@
 <script lang="ts">
-    import Toast from "$lib/components/Toast.svelte";
-    import { loadedReport } from "$lib/state.svelte";
+    import type { ReportType } from "$lib/schema";
+    import { loadedReport, settings } from "$lib/state.svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
+    import { toast } from "svelte-sonner";
     import { z } from "zod/v4";
     
-    
-    let toast: Toast;
     
     const newReportSchema = z.object({
         title: z.string().nonempty(),
@@ -25,12 +24,11 @@
         
         if (result.success) {
             const data: ReportType = await invoke("new_report", { report: result.data });
-            toast.show("success", "New report created", `New report '${newReportTitle}' has been created and loaded.`);
+            toast.success(`New report '${newReportTitle}' has been created and loaded.`);
             loadedReport.report = data;
-            
         }
         else {
-            toast.show("danger", "New report failed", `${result.error}`);
+            toast.error(`${result.error}`);
         }
     }
     
@@ -47,10 +45,10 @@
         try {
             const data: ReportType = await invoke("load_report", { id: selectedReport });
             loadedReport.report = data;
-            toast.show("success", "Report loaded", `Report with ID '${selectedReport}' has been loaded.`);
+            toast.success(`Report with ID '${selectedReport}' has been loaded.`);
         }
         catch (error) {
-            toast.show("danger", "Report loading failed", `Couldn't load report with ID '${selectedReport}'. ${error}`);
+            toast.error(`Couldn't load report with ID '${selectedReport}'. ${error}`);
         }
     }
     
@@ -65,6 +63,7 @@
     
     onMount(async () => {
         loadedReport.report = await invoke("get_loaded_report");
+        settings.s = await invoke("get_settings");
     });
 </script>
 
@@ -152,5 +151,3 @@
         </div>
     </div>
 </div>
-
-<Toast bind:this={toast} />

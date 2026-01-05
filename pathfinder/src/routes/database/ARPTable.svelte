@@ -1,22 +1,13 @@
 <script lang="ts">
-    import type { Arp, ArpScan } from "$lib/schema";
+    import type { ArpScan } from "$lib/schema";
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
     
-    async function viewArpScanDetails(event: any) {
-        const arpScan = arpScans.find((v) => v.id === event.currentTarget.value);
-        if (arpScan) {
-            selectedArpScan = {
-                scan: arpScan,
-                arp: await invoke("get_arps", { scanId: arpScan.id })
-            }
-        }
+    function viewArpScanDetails(event: any) {
+        selectedArpScan = arpScans.find((v) => v.id === event.currentTarget.value);
     }
     
-    let selectedArpScan: {
-        scan: ArpScan,
-        arp: Arp[]
-    } | undefined = $state(undefined);
+    let selectedArpScan: ArpScan | undefined = $state(undefined);
     
     let arpScans: ArpScan[] = $state([]);
     onMount(async () => {
@@ -64,22 +55,22 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col">
-                                <p class="card-text">ID: {selectedArpScan?.scan.id}</p>
-                                <p class="card-text">Report: {selectedArpScan?.scan.report}</p>
-                                <p class="card-text">ARP count: {selectedArpScan?.scan.arp_count}</p>
-                                <p class="card-text">Duration: {selectedArpScan?.scan.duration_ms} ms</p>
-                                <p class="card-text">Packet count: {selectedArpScan?.scan.packet_count}</p>
-                                <p class="card-text">Interface: {selectedArpScan?.scan.interface}</p>
-                                <p class="card-text">Network: {selectedArpScan?.scan.network}</p>
+                                <p class="card-text">ID: {selectedArpScan?.id}</p>
+                                <p class="card-text">Report: {selectedArpScan?.report}</p>
+                                <p class="card-text">ARP count: {selectedArpScan?.arp_count}</p>
+                                <p class="card-text">Duration: {selectedArpScan?.duration_ms} ms</p>
+                                <p class="card-text">Packet count: {selectedArpScan?.packet_count}</p>
+                                <p class="card-text">Interface: {selectedArpScan?.interface}</p>
+                                <p class="card-text">Network: {selectedArpScan?.network}</p>
                             </div>
                             <div class="col">
-                                <p class="card-text">Timeout: {selectedArpScan?.scan.timeout} ms</p>
-                                <p class="card-text">Interval: {selectedArpScan?.scan.interval} ms</p>
-                                <p class="card-text">Retry: {selectedArpScan?.scan.retry}</p>
-                                <p class="card-text">Source IP: {selectedArpScan?.scan.src_ip}</p>
-                                <p class="card-text">Source MAC: {selectedArpScan?.scan.src_mac}</p>
-                                <p class="card-text">Destination MAC: {selectedArpScan?.scan.dst_mac}</p>
-                                <p class="card-text">VLAN ID: {selectedArpScan?.scan.vlan_id}</p>
+                                <p class="card-text">Timeout: {selectedArpScan?.timeout} ms</p>
+                                <p class="card-text">Interval: {selectedArpScan?.interval} ms</p>
+                                <p class="card-text">Retry: {selectedArpScan?.retry}</p>
+                                <p class="card-text">Source IP: {selectedArpScan?.src_ip}</p>
+                                <p class="card-text">Source MAC: {selectedArpScan?.src_mac}</p>
+                                <p class="card-text">Destination MAC: {selectedArpScan?.dst_mac}</p>
+                                <p class="card-text">VLAN ID: {selectedArpScan?.vlan_id}</p>
                             </div>
                         </div>
                     </div>
@@ -87,7 +78,6 @@
                 <table class="table mt-4">
                     <thead>
                         <tr>
-                            <th scope="col">#</th>
                             <th scope="col">IPv4</th>
                             <th scope="col">MAC</th>
                             <th scope="col">Hostname</th>
@@ -95,9 +85,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {#each selectedArpScan?.arp as a}
+                        {#each selectedArpScan?.scans as a}
                             <tr>
-                                <th scope="row">{a.id}</th>
                                 <td>{a.ipv4}</td>
                                 <td>{a.mac}</td>
                                 <td>{a.hostname}</td>

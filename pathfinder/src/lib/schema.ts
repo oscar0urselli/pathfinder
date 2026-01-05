@@ -1,3 +1,42 @@
+export type PluginFormData = {
+    name: string,
+    config: PluginFormConfig
+};
+
+export type PluginFormConfig = {
+    [key: string]: {
+        title: string,
+        type: "str" | "ipv4" | "ipv6" | "ipv4_cidr" | "ipv6_cidr" | "mac" | "float" | "int" | "bool",
+        options?: string[],
+        min?: string,
+        max?: string,
+        step?: string,
+        regex?: string,
+        default?: string
+    }
+};
+
+export type Plugin = {
+    path: string,
+    folder: string,
+    config: PluginConfig
+};
+
+export type PluginConfig = {
+    name: string,
+    author: string,
+    license: string,
+    repository: string,
+    version: string,
+    language: string,
+    params: any
+}
+
+export type Toast = {
+    alert_type: "success" | "info" | "warning" | "danger" | "none",
+    text: string
+};
+
 export type ArpScanIpInfo = {
     ip: string,
     network: string,
@@ -38,16 +77,14 @@ export type ArpScan = {
     src_ip: string,
     src_mac: string,
     dst_mac: string,
-    vlan_id: number | null
-};
-
-export type Arp = {
-    id: number,
-    ipv4: string,
-    mac: string,
-    hostname: string,
-    vendor: string,
-    scan: string
+    vlan_id: number | null,
+    scans: {
+        ipv4: string,
+        mac: string,
+        hostname: string,
+        vendor: string,
+        scan: string
+    }[]
 };
 
 export type DnsQuery = {

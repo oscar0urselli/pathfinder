@@ -4,10 +4,9 @@
     import { z } from "zod/v4";
     import { invoke } from "@tauri-apps/api/core";
     import { loadedReport } from "$lib/state.svelte";
-    import Toast from "$lib/components/Toast.svelte";
-    import type { ArpScanInfo } from "$lib/schema";
+    import type { ArpScanInfo, Plugin } from "$lib/schema";
+    import { toast } from "svelte-sonner";
     
-    let toast: Toast;
     
     const arpSettingsSchema = z.object({
         interface: z.string(),
@@ -47,10 +46,10 @@
         if (result.success) {
             try {
                 await invoke("arp_scan", { settings: result.data, reportId: loadedReport.report?.id });
-                toast.show("success", "ARP scan completed", "ARP scan terminated and the results are available.");
+                toast.success("ARP scan terminated and the results are available.");
             }
             catch (error) {
-                toast.show("danger", "ARP scan failed", `ARP scan did not complete successfully: ${error}`);
+                toast.error(`ARP scan did not complete successfully: ${error}`);
             }
         }
         else {
@@ -58,28 +57,8 @@
         }
     }
     
-    async function dnsQuery(event: any) {
-        let formData = new FormData(dnsForm);
-        
-        console.log(formData.get("aaaa"));
-        
-        await invoke("dns_query", { settings: {
-            host: formData.get("host"),
-            port: Number(formData.get("port")),
-            protocol: formData.get("protocol"),
-            domain: formData.get("domain"),
-            a: formData.get("a") !== null,
-            aaaa: formData.get("aaaa") !== null,
-            caa: formData.get("caa") !== null,
-            cname: formData.get("cname") !== null,
-            ptr: formData.get("ptr") !== null,
-            alias: formData.get("alias") !== null,
-            mx: formData.get("mx") !== null,
-            ns: formData.get("ns") !== null,
-            srv: formData.get("srv") !== null,
-            txt: formData.get("txt") !== null,
-            hinfo: formData.get("hinfo") !== null
-        } });
+    function runPlugin(event: any) {
+        invoke("run_plugin", { pluginName: event.currentTarget.value });
     }
 
     let arpScanInfo: ArpScanInfo = $state({ interfaces: [] });
@@ -93,9 +72,10 @@
     let arpScanSrcMac = $state("00:00:00:00:00:00");
     let arpScanDstMac = $state("00:00:00:00:00:00");
     
-    let dnsForm: HTMLFormElement;
+    let plugins: { [key: string]: Plugin } = $state({});
     onMount(async () => {
         loadedReport.report = await invoke("get_loaded_report");
+        plugins = await invoke("get_plugins");
         arpScanInfo = await invoke("arp_scan_info");
       
         let cy = cytoscape({
@@ -134,9 +114,9 @@
 <div class="z-1 position-absolute start-50 translate-middle-x m-2">
     <div class="card border-0 shadow-lg p-2 hstack gap-2">
         <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#arp-settings">ARP</button>
-        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#dns-settings">DNS</button>
-        <button type="button" class="btn btn-secondary">NDP</button>
-        <button type="button" class="btn btn-secondary">SNMP</button>
+        {#each Object.keys(plugins) as p}
+            <button onclick={runPlugin} value={p} type="button" class="btn btn-secondary">{p}</button>
+        {/each}
     </div>
 </div>
 
@@ -205,124 +185,3 @@
         </div>
     </div>
 </div>
-
-<!-- ARP Settings -->
-<div class="modal fade" id="dns-settings" data-bs-backdrop="static" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">DNS</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form bind:this={dnsForm}>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col mb-3">
-                        <label for="dns-host" class="form-label">Host</label>
-                        <input name="host" type="text" class="form-control" id="dns-host">
-                    </div>
-                    <div class="col mb-3">
-                        <label for="dns-port" class="form-label">Port</label>
-                        <input name="port" min="1" max="65536" step="1" value="53" type="number" class="form-control" id="dns-port">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col mb-3">
-                        <label for="dns-domain" class="form-label">Domain</label>
-                        <input name="domain" type="text" class="form-control" id="dns-domain">
-                    </div>
-                    <div class="col mb-3">
-                        <label for="dns-protocol" class="form-label">Protocol</label>
-                        <select name="protocol" class="form-select" id="dns-protocol" aria-label="Default select example">
-                            <option value="udp">UDP</option>
-                            <option value="tcp" selected>TCP</option>
-                            <option value="tls">TLS</option>
-                            <option value="https">HTTPS</option>
-                            <option value="quic">QUIC</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-a" name="a" checked>
-                            <label class="form-check-label" for="dns-a">A</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-aaaa" name="aaaa" checked>
-                            <label class="form-check-label" for="dns-aaaa">AAAA</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-caa" name="caa" checked>
-                            <label class="form-check-label" for="dns-caa">CAA</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-cname" name="cname" checked>
-                            <label class="form-check-label" for="dns-cname">CNAME</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-ptr" name="ptr" checked>
-                            <label class="form-check-label" for="dns-ptr">PTR</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-alias" name="alias" checked>
-                            <label class="form-check-label" for="dns-alias">ALIAS/ANAME</label>
-                        </div>
-                    </div>    
-                </div>
-                <div class="row">
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-mx" name="mx" checked>
-                            <label class="form-check-label" for="dns-mx">MX</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-ns" name="ns" checked>
-                            <label class="form-check-label" for="dns-ns">NS</label>
-                        </div>
-                    </div>
-                    <div class="col mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-srv" name="srv" checked>
-                            <label class="form-check-label" for="dns-srv">SRV</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-4 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-txt" name="txt" checked>
-                            <label class="form-check-label" for="dns-txt">TXT</label>
-                        </div>
-                    </div>
-                    <div class="col-4 mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="" id="dns-hinfo" name="hinfo" checked>
-                            <label class="form-check-label" for="dns-hinfo">HINFO</label>
-                        </div>
-                    </div>
-                </div> 
-            </div>
-            <div class="modal-footer">
-                <button onclick={dnsQuery} type="submit" class="btn btn-success">Query</button>
-            </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<Toast bind:this={toast} />

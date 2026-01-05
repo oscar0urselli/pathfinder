@@ -1,0 +1,14 @@
+[project]
+name = "dns"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dnspython>=2.8.0",
+    "pathfinder-py",
+    "sqlglot[rs]>=28.5.0",
+]
+
+[tool.uv.sources]
+pathfinder-py = { path = "../../pathfinder-py", editable = true }

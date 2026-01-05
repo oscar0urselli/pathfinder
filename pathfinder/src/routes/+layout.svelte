@@ -6,9 +6,13 @@
     // Bootrstrap JS
     import scriptSrc from "bootstrap/dist/js/bootstrap.bundle.min.js?url";
     
-	import { onMount } from "svelte";
+	import { mount, onMount } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import { loadedReport } from "$lib/state.svelte";
+    import { loadedReport, settings } from "$lib/state.svelte";
+    import { listen } from "@tauri-apps/api/event";
+    import type { PluginFormData, PluginFormConfig, Toast } from "$lib/schema";
+    import { Toaster, toast } from "svelte-sonner";
+    import PluginForm from "$lib/components/PluginForm.svelte";
 
 	let { children } = $props();
 
@@ -17,6 +21,37 @@
 		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 		
 		loadedReport.report = await invoke("get_loaded_report");
+		settings.s = await invoke("get_settings");
+	});
+	
+	listen<Toast>("toast", (event) => {
+        switch (event.payload.alert_type) {
+            case "success":
+                toast.success(event.payload.text);
+                break;
+            case "info":
+                toast.info(event.payload.text);
+                break;
+            case "warning":
+                toast.warning(event.payload.text);
+                break;
+            case "danger":
+                toast.error(event.payload.text);
+                break;
+            case "none":
+                toast(event.payload.text);
+                break;
+        }
+	});
+	
+	listen<PluginFormData>("form", (event) => {
+	    const form = mount(PluginForm, {
+			target: document.body,
+			props: {
+                config: event.payload.config,
+                plugin: event.payload.name
+			}		
+		});
 	});
 </script>
 
@@ -39,7 +74,9 @@
 	{/if}
 </div>
 
-<div class="vh-100 w-100" style="background-color: #eeeeee;">
+<Toaster richColors closeButton position={settings.s.notification_pos} expand={true} />
+
+<div class="vh-100 w-100 overflow-scroll" style="background-color: #eeeeee;">
 	{@render children()}
 </div>
 
@@ -53,7 +90,7 @@
             </div>
             <div class="modal-body">
                 <p>ID: {loadedReport.report?.id}</p>
-                <p>Last access: {new Date(loadedReport.report?.last_access_tsz / 1000).toLocaleString()}</p>
+                <p>Last access: {loadedReport.report ? new Date(loadedReport.report?.last_access_tsz / 1000).toLocaleString() : undefined}</p>
                 <p>Title: {loadedReport.report?.title}</p>
                 <p>Author: {loadedReport.report?.author}</p>
                 <p>Device: {loadedReport.report?.device}</p>

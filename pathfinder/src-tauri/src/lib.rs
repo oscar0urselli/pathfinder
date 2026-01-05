@@ -1,31 +1,48 @@
+mod arp;
+mod plugin;
 mod report;
-mod arp_scan;
-mod dns;
+mod settings;
+mod utils;
 
+use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use duckdb::{self, params};
 
+use crate::plugin::{Plugin, PluginConfig};
+use crate::settings::Settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             report::get_loaded_report,
             report::new_report,
             report::list_reports,
             report::load_report,
-            arp_scan::arp_scan_info,
-            arp_scan::arp_scan,
-            arp_scan::get_arp_scans,
-            arp_scan::get_arps,
-            dns::dns_query,
-            dns::get_dns_queries
+            plugin::run_plugin,
+            plugin::get_plugins,
+            plugin::send_plugin_form_res,
+            settings::get_settings,
+            settings::set_notifications_pos,
+            settings::set_plugins_server_port,
+            settings::set_python_interpreter,
+            settings::set_node_js_interpreter,
+            settings::set_lua_interpreter,
+            arp::arp_scan_info,
+            arp::arp_scan,
+            arp::get_arp_scans
         ])
         .setup(|app| {
+            if !app.path().app_local_data_dir().unwrap().join("plugins").exists() {
+                let _ = fs::create_dir(app.path().app_local_data_dir().unwrap().join("plugins"));
+            }
+            
             if !app.path().app_local_data_dir().unwrap().join("duckdb").exists() {
                 let _ = fs::create_dir(app.path().app_local_data_dir().unwrap().join("duckdb"));
             }
@@ -37,18 +54,29 @@ pub fn run() {
                 Err(err) => println!("Table 'reports' not created: {}", err)
             };
             
-            let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp_scans (id UUID PRIMARY KEY, report UUID, arp_count UINT64, duration_ms UINT64, packet_count UINT64, interface STRING, network STRING, timeout UINT64, interval UINT64, retry UINT64, src_ip STRING, src_mac STRING, dst_mac STRING, vlan_id UINT16);", params![]);
-            
-            let _ = conn.execute("CREATE SEQUENCE id_sequence_arp START 1;", []);
-            let _ = conn.execute("CREATE TABLE IF NOT EXISTS arp (id UINT64 PRIMARY KEY DEFAULT nextval('id_sequence_arp'), ipv4 STRING, mac STRING, hostname STRING, vendor STRING, scan UUID);", params![]);
-            
-            let _ = conn.execute("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY, report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING);", []);
-            
-            app.manage(Arc::new(Mutex::new(conn)));
-            
             let loaded_report: Option<report::Report> = None; 
             app.manage(Arc::new(Mutex::new(loaded_report)));
-
+            
+            let settings = Settings::load(app.path().app_local_data_dir().unwrap());
+            
+            plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port);
+            
+            app.manage(Arc::new(Mutex::new(conn)));
+            app.manage(Arc::new(Mutex::new(settings)));
+            
+            let mut plugins: HashMap<String, Plugin> = HashMap::new();
+            for p in fs::read_dir(app.app_handle().path().app_local_data_dir().unwrap().join("plugins")).unwrap() {
+                let cnt = fs::read_to_string(p.as_ref().unwrap().path().join("config.json")).unwrap();
+                let config: PluginConfig = serde_json::from_str(&cnt).unwrap();
+                
+                plugins.insert(config.name.clone(), Plugin {
+                    path: p.as_ref().unwrap().path().to_str().unwrap().to_owned(),
+                    folder: p.unwrap().file_name().to_str().unwrap().to_owned(),
+                    config: config
+                });
+            }
+            app.manage(Arc::new(Mutex::new(plugins)));
+            
             Ok(())
         })
         .run(tauri::generate_context!())
