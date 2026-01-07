@@ -1,15 +1,16 @@
+import asyncio
 import json
 import pathfinder_py
 import dns.resolver
 from sqlglot import exp
 
 
-def main():
+async def main():
     plugin = pathfinder_py.Plugin()
     
-    plugin.toast(pathfinder_py.Plugin.ToastType.INFO, "Plugin started.")
+    await plugin.toast(pathfinder_py.Plugin.ToastType.INFO, "Plugin running.")
 
-    params = plugin.show_form({
+    params = await plugin.form({
         "host": {
             "title": "Host",
             "type": "ipv4"
@@ -118,9 +119,8 @@ def main():
                 "class": answer.rdclass.name,
                 "data": rr.to_text()
             })
-    print(records)
     
-    plugin.execute_raw_query("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY DEFAULT uuidv7(), report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING")
+    await plugin.execute_raw_query("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY DEFAULT uuidv7(), report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING")
 
     sql = exp.Insert(
         this=exp.Table(this=exp.Identifier(this="dns")),
@@ -148,12 +148,12 @@ def main():
         ]
     ).sql()
     
-    plugin.execute_raw_query(sql)
+    await plugin.execute_raw_query(sql)
     
-    plugin.toast(pathfinder_py.Plugin.ToastType.SUCCESS, "DNS queries completed.")
+    await plugin.toast(pathfinder_py.Plugin.ToastType.SUCCESS, "DNS queries completed.")
     
     plugin.exit()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

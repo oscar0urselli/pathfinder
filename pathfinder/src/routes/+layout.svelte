@@ -6,7 +6,7 @@
     // Bootrstrap JS
     import scriptSrc from "bootstrap/dist/js/bootstrap.bundle.min.js?url";
     
-	import { mount, onMount } from "svelte";
+	import { mount, onMount, unmount } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { loadedReport, settings } from "$lib/state.svelte";
     import { listen } from "@tauri-apps/api/event";
@@ -44,12 +44,18 @@
         }
 	});
 	
+	function unmountForm() {
+        unmount(form);
+	}
+	
+	let form;
 	listen<PluginFormData>("form", (event) => {
-	    const form = mount(PluginForm, {
+	    form = mount(PluginForm, {
 			target: document.body,
 			props: {
                 config: event.payload.config,
-                plugin: event.payload.name
+                plugin: event.payload.name,
+                closeForm: unmountForm
 			}		
 		});
 	});

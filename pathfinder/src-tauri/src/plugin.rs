@@ -7,13 +7,13 @@ use crate::{report::Report, settings::Settings, utils::Toast};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
-    Register,
-    Toast { alert_type: u8, text: String },
-    ExecuteRawQuery { query: String },
+    RegisterReq,
+    ToastReq { alert_type: u8, text: String },
+    ExecuteRawQueryReq { query: String },
     FormReq { data: PluginFormData },
     FormRes { dst: String, data: String },
-    Exit,
-    Terminate { plugins: Vec<String> }
+    ExitReq,
+    TerminateCmd { plugins: Vec<String> }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -42,26 +42,24 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
         socket.bind(&format!("tcp://*:{}", port)).unwrap();
 
         loop {
-            let identity = String::from_utf8(socket.recv_msg(0).unwrap().to_vec()).unwrap();
-            let message = socket.recv_msg(0).unwrap().to_vec();
+            let identity = socket.recv_string(0).unwrap().unwrap();
+            let message = socket.recv_string(0).unwrap().unwrap();
             let command: PluginCommand = serde_json::from_slice(message.as_ref()).unwrap();
 
             match command {
-                PluginCommand::Register => {
+                PluginCommand::RegisterReq => {
                     println!("Register plugin with ID: {}", identity);
-                }
-                PluginCommand::Toast { alert_type, text } => {
-                    app_handle
-                        .emit(
-                            "toast",
-                            &Toast {
-                                alert_type: Toast::alert_type_to_string(alert_type).unwrap(),
-                                text,
-                            },
-                        )
-                        .unwrap();
-                }
-                PluginCommand::ExecuteRawQuery { query } => {
+                },
+                PluginCommand::ToastReq { alert_type, text } => {
+                    app_handle.emit(
+                        "toast",
+                        &Toast {
+                            alert_type: Toast::alert_type_to_string(alert_type).unwrap(),
+                            text,
+                        },
+                    ).unwrap();
+                },
+                PluginCommand::ExecuteRawQueryReq { query } => {
                     conn.execute(&query, []);
                 },
                 PluginCommand::FormReq { data } => {
@@ -69,10 +67,11 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 },
                 PluginCommand::FormRes { dst, data } => {
                     socket.send(dst.as_bytes(), zmq::SNDMORE);
-                    socket.send(data.as_bytes(), 0);
+                    //socket.send(&data, 0);
+                    socket.send(&message, 0);
                 },
-                PluginCommand::Exit => {},
-                PluginCommand::Terminate { plugins } => {
+                PluginCommand::ExitReq => {},
+                PluginCommand::TerminateCmd { plugins } => {
                     
                 }
             };
@@ -113,28 +112,22 @@ pub fn get_plugins(plugins: tauri::State<Arc<Mutex<HashMap<String, Plugin>>>>) -
     plugins.clone()
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct FormRes {
-    dst: String,
-    data: String
-}
-
 #[tauri::command]
 pub fn send_plugin_form_res(app_handle: AppHandle, settings: tauri::State<Arc<Mutex<Settings>>>, plugin: String, params: String) {
     let settings_arc_clone = Arc::clone(&settings);
     let settings = settings_arc_clone.lock().unwrap();
     
-    let data = serde_json::to_string(&FormRes {
+    let data = serde_json::to_string(&PluginCommand::FormRes {
         dst: plugin,
         data: params
     }).unwrap();
     
     let ctx = zmq::Context::new();
     let socket = ctx.socket(zmq::DEALER).unwrap();
+    socket.set_identity("chomik".as_bytes());
 
-    socket.connect(&format!("tcp://*:{}", settings.plugins_server_port)).unwrap();
+    socket.connect(&format!("tcp://localhost:{}", settings.plugins_server_port)).unwrap();
     
-    socket.send("chomik", zmq::SNDMORE);
     socket.send(data.as_bytes(), 0);
 }
 
