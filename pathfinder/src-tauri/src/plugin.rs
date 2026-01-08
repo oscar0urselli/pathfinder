@@ -60,14 +60,22 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     ).unwrap();
                 },
                 PluginCommand::ExecuteRawQueryReq { query } => {
-                    conn.execute(&query, []);
+                    match conn.execute(&query, []) {
+                        Ok(_) => {},
+                        Err(err) => app_handle.emit(
+                            "toast",
+                            &Toast {
+                                alert_type: "danger".to_string(),
+                                text: err.to_string(),
+                            }
+                        ).unwrap()
+                    };
                 },
                 PluginCommand::FormReq { data } => {
                     app_handle.emit("form", &data).unwrap();
                 },
                 PluginCommand::FormRes { dst, data } => {
                     socket.send(dst.as_bytes(), zmq::SNDMORE);
-                    //socket.send(&data, 0);
                     socket.send(&message, 0);
                 },
                 PluginCommand::ExitReq => {},

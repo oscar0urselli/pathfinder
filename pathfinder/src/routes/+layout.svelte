@@ -13,6 +13,7 @@
     import type { PluginFormData, PluginFormConfig, Toast } from "$lib/schema";
     import { Toaster, toast } from "svelte-sonner";
     import PluginForm from "$lib/components/PluginForm.svelte";
+    import { afterNavigate } from "$app/navigation";
 
 	let { children } = $props();
 
@@ -58,6 +59,10 @@
                 closeForm: unmountForm
 			}		
 		});
+	});
+	
+	afterNavigate(async (navigation) => {
+	    loadedReport.report = await invoke("get_loaded_report");
 	});
 </script>
 

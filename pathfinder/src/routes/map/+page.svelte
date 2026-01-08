@@ -74,7 +74,6 @@
     
     let plugins: { [key: string]: Plugin } = $state({});
     onMount(async () => {
-        loadedReport.report = await invoke("get_loaded_report");
         plugins = await invoke("get_plugins");
         arpScanInfo = await invoke("arp_scan_info");
       

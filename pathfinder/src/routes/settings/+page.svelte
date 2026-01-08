@@ -52,7 +52,6 @@
     let luaPath: string | undefined = $state(settings.s.lua);
     
     onMount(async () => {
-        loadedReport.report = await invoke("get_loaded_report");
         settings.s = await invoke("get_settings");
     });
 </script>

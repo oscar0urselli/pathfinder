@@ -1,6 +1,7 @@
 mod arp;
 mod plugin;
 mod report;
+mod database;
 mod settings;
 mod utils;
 
@@ -34,6 +35,8 @@ pub fn run() {
             settings::set_python_interpreter,
             settings::set_node_js_interpreter,
             settings::set_lua_interpreter,
+            database::get_table,
+            database::get_tables_list,
             arp::arp_scan_info,
             arp::arp_scan,
             arp::get_arp_scans

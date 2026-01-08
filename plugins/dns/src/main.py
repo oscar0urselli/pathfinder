@@ -120,7 +120,7 @@ async def main():
                 "data": rr.to_text()
             })
     
-    await plugin.execute_raw_query("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY DEFAULT uuidv7(), report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING")
+    await plugin.execute_raw_query("CREATE TABLE IF NOT EXISTS dns (id UUID PRIMARY KEY, report UUID, host STRING, port UINT16, protocol STRING, domain STRING, records STRING);")
 
     sql = exp.Insert(
         this=exp.Table(this=exp.Identifier(this="dns")),
@@ -128,6 +128,7 @@ async def main():
             expressions=[
                 exp.Tuple(
                     expressions=[
+                        exp.func("uuidv7"),
                         exp.Null() if plugin.report is None else exp.Literal.string(plugin.report),
                         exp.Literal.string(params["host"]),
                         exp.Literal.number(params["port"]),
@@ -139,6 +140,7 @@ async def main():
             ]
         ),
         columns=[
+            exp.Identifier(this="id"),
             exp.Identifier(this="report"),
             exp.Identifier(this="host"),
             exp.Identifier(this="port"),
