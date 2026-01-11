@@ -1,4 +1,3 @@
-mod arp;
 mod plugin;
 mod report;
 mod database;
@@ -36,10 +35,7 @@ pub fn run() {
             settings::set_node_js_interpreter,
             settings::set_lua_interpreter,
             database::get_table,
-            database::get_tables_list,
-            arp::arp_scan_info,
-            arp::arp_scan,
-            arp::get_arp_scans
+            database::get_tables_list
         ])
         .setup(|app| {
             if !app.path().app_local_data_dir().unwrap().join("plugins").exists() {

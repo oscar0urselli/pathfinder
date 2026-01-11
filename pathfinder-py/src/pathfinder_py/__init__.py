@@ -1,7 +1,9 @@
+import __main__
 import argparse
 import asyncio
 from enum import Enum
 import json
+import os
 import sys
 
 import jsonschema
@@ -26,7 +28,8 @@ class Plugin:
                 "license": { "type": "string" },
                 "repository": { "type": "string" },
                 "version": { "type": "string" },
-                "language": { "type": "string" }
+                "language": { "type": "string" },
+                "permissions": { "type": "string" }
             }
         }
         
@@ -34,7 +37,7 @@ class Plugin:
         pass
     
     def __init__(self) -> None:
-        with open("./config.json", "r") as f:
+        with open(os.path.join(os.path.dirname(os.path.realpath(__main__.__file__)), "../config.json"), "r") as f:
             self.config = json.loads(f.read())
             jsonschema.validate(instance=self.config, schema=self.Config.schema)
         

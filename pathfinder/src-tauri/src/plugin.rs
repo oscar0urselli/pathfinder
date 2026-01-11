@@ -1,5 +1,6 @@
-use std::{collections::HashMap, io::BufRead, process::Command, sync::{Arc, Mutex}, thread};
+use std::{collections::HashMap, io::BufRead, path::Path, process::Command as StdCommand, sync::{Arc, Mutex}, thread};
 
+use elevated_command::Command;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
@@ -101,7 +102,8 @@ pub struct PluginConfig {
     pub license: String,
     pub repository: String,
     pub version: String,
-    pub language: PluginLanguage
+    pub language: PluginLanguage,
+    pub permissions: String
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -159,16 +161,16 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
         PluginLanguage::Py => {
             match settings.python.clone() {
                 Some(path) => {
-                    thread::spawn(move || {
-                        app_handle.emit("toast", &Toast { alert_type: "warning".to_string(), text: "Plugin started.".to_string() }).unwrap();
-                        match Command::new(path)
-                            .current_dir(&plugin.path)
-                            .arg("src/main.py")
-                            .arg("--port")
-                            .arg(settings.plugins_server_port.to_string())
-                            .arg("--report")
-                            .arg(&loaded_report.as_ref().unwrap().id)
-                            .output() {
+                    thread::spawn(move || {                        
+                        let mut cmd = StdCommand::new(path);
+                        cmd.arg(Path::new(&plugin.path).join("src/main.py").to_str().unwrap());
+                        cmd.arg("--port");
+                        cmd.arg(settings.plugins_server_port.to_string());
+                        cmd.arg("--report");
+                        cmd.arg(&loaded_report.as_ref().unwrap().id);
+                        
+                        if Command::is_elevated() && plugin.config.permissions == "admin" || plugin.config.permissions == "user" {
+                            match cmd.output() {
                                 Ok(r) => {
                                     if r.status.success() {
                                         app_handle.emit("toast", &Toast { alert_type: "success".to_string(), text: "Plugin successfully terminated.".to_string() }).unwrap()
@@ -185,6 +187,27 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                                 },
                                 Err(err) => app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: err.to_string() }).unwrap()
                             }
+                        }
+                        else {
+                            println!("Eleveted command");
+                            match Command::new(cmd).output() {
+                                Ok(r) => {
+                                    if r.status.success() {
+                                        app_handle.emit("toast", &Toast { alert_type: "success".to_string(), text: "Plugin successfully terminated.".to_string() }).unwrap()
+                                    }
+                                    else {
+                                        let mut stderr = String::new();
+                                        for line in r.stderr.lines() {
+                                            if let Ok(line) = line {
+                                                stderr.push_str(&line);
+                                            }
+                                        }
+                                        app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: stderr }).unwrap()
+                                    }
+                                },
+                                Err(err) => app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: err.to_string() }).unwrap()
+                            }
+                        }
                     });
                 },
                 None => app_handle.emit("toast", &Toast {

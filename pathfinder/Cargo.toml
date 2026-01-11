@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "arp-scan-lib",
+    "elevated-command",
     "src-tauri"
 ]
 
 [workspace.dependencies]
-arp-scan-lib = { path = "arp-scan-lib" }
+elevated-command = { path = "elevated-command" }

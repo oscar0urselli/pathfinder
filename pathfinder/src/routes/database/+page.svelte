@@ -2,7 +2,6 @@
     import { loadedReport } from "$lib/state.svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
-    import ARPTable from "./ARPTable.svelte";
     import type { ReportType } from "$lib/schema";
     
     

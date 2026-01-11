@@ -22,3 +22,8 @@ target
 
 .vscode
 .zed
+
+# Python & uv
+__pycache__
+uv.lock
+.venv
