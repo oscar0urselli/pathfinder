@@ -1,0 +1,9 @@
+{
+    "name": "SLEEP",
+    "author": "Oscar Urselli",
+    "license": "MIT",
+    "repository": "",
+    "version": "0.1.0",
+    "language": "py",
+    "permissions": "user"
+}

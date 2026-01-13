@@ -8,9 +8,9 @@
     
 	import { mount, onMount, unmount } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import { loadedReport, settings } from "$lib/state.svelte";
+    import { activePlugins, loadedReport, plugins, settings } from "$lib/state.svelte";
     import { listen } from "@tauri-apps/api/event";
-    import type { PluginFormData, PluginFormConfig, Toast } from "$lib/schema";
+    import type { PluginFormData, PluginFormConfig, Toast, ActivePlugins } from "$lib/schema";
     import { Toaster, toast } from "svelte-sonner";
     import PluginForm from "$lib/components/PluginForm.svelte";
     import { afterNavigate } from "$app/navigation";
@@ -18,14 +18,12 @@
 	let { children } = $props();
 
 	onMount(async () => {
-		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
-		
 		loadedReport.report = await invoke("get_loaded_report");
 		settings.s = await invoke("get_settings");
+		plugins.p = await invoke("get_plugins");
 	});
 	
-	listen<Toast>("toast", (event) => {
+	listen<Toast>("toast", async (event) => {
         switch (event.payload.alert_type) {
             case "success":
                 toast.success(event.payload.text);
@@ -43,6 +41,7 @@
                 toast(event.payload.text);
                 break;
         }
+        activePlugins.p = await invoke("get_active_plugins");
 	});
 	
 	function unmountForm() {
@@ -56,14 +55,28 @@
 			props: {
                 config: event.payload.config,
                 plugin: event.payload.name,
-                closeForm: unmountForm
-			}		
+                destroyForm: unmountForm
+			}
 		});
+	});
+	
+	listen<ActivePlugins>("active_plugins", (event) => {
+	    activePlugins.p = event.payload;
 	});
 	
 	afterNavigate(async (navigation) => {
 	    loadedReport.report = await invoke("get_loaded_report");
+					
+		activePlugins.p = await invoke("get_active_plugins");
 	});
+	
+	async function updateActivePlugins(event: any) {
+	    activePlugins.p = await invoke("get_active_plugins");
+	}
+	
+	async function terminatePlugin(event: any) {
+	    await invoke("terminate_plugin", { plugin: event.currentTarget.value });
+	}
 </script>
 
 <svelte:head>
@@ -72,11 +85,11 @@
 
 <div class="z-1 position-absolute m-2 vstack gap-2">
 	<div class="card border-0 shadow-lg p-2 vstack gap-2">
-		<a href="/" role="button" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="custom-tooltip" data-bs-title="Home" aria-label="Home"><i class="bi bi-house-fill"></i></a>
-		<a href="/map" role="button" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="custom-tooltip" data-bs-title="Map" aria-label="Map"><i class="bi bi-diagram-3-fill"></i></a>
-		<a href="/database" role="button" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="custom-tooltip" data-bs-title="Database" aria-label="Database"><i class="bi bi-database-fill"></i></a>
-		<a href="/plugins" role="button" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="custom-tooltip" data-bs-title="Plugins" aria-label="Plugins"><i class="bi bi-box-seam-fill"></i></a>
-		<a href="/settings" role="button" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-custom-class="custom-tooltip" data-bs-title="Settings" aria-label="Settings"><i class="bi bi-gear-fill"></i></a>
+		<a href="/" role="button" class="btn btn-primary" aria-label="Home"><i class="bi bi-house-fill"></i></a>
+		<a href="/map" role="button" class="btn btn-primary" aria-label="Map"><i class="bi bi-diagram-3-fill"></i></a>
+		<a href="/database" role="button" class="btn btn-primary" aria-label="Database"><i class="bi bi-database-fill"></i></a>
+		<a href="/plugins" role="button" class="btn btn-primary" aria-label="Plugins"><i class="bi bi-box-seam-fill"></i></a>
+		<a href="/settings" role="button" class="btn btn-primary" aria-label="Settings"><i class="bi bi-gear-fill"></i></a>
 	</div>
 	{#if loadedReport.report}
 	<div class="card border-0 shadow-lg p-2 vstack gap-2">
@@ -85,10 +98,50 @@
 	{/if}
 </div>
 
+<div class="z-1 position-absolute bottom-0 start-0 m-2 vstack gap-2">
+   	<div class="card border-0 shadow-lg p-2 vstack gap-2">
+		<button onclick={updateActivePlugins} type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#plugins-manager" aria-label="Report"><i class="bi bi-cpu-fill"></i></button>
+        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#logs-console" aria-label="Report"><i class="bi bi-terminal-fill"></i></button>
+	</div>
+</div>
+
 <Toaster richColors closeButton position={settings.s.notification_pos} expand={true} />
 
 <div class="vh-100 w-100 overflow-scroll" style="background-color: #eeeeee;">
 	{@render children()}
+</div>
+
+<!-- Plugins manager modal -->
+<div class="modal fade" id="plugins-manager" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Plugins Manager</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group">
+                    {#each Object.keys(plugins.p) as p_name}
+                        <li class="list-group-item">
+                            <div class="hstack gap-2">
+                                <p class="my-0">{p_name}</p>
+                                {#if activePlugins.p[p_name] !== undefined}
+                                    <span class="badge text-bg-secondary">{activePlugins.p[p_name]}</span>
+                                    {#if activePlugins.p[p_name] === "Running" || activePlugins.p[p_name] === "WaitingForm"}
+                                        <button onclick={terminatePlugin} value={p_name} class="ms-auto btn btn-sm btn-danger" aria-label="Stop plugin"><i class="bi bi-stop-fill"></i></button>
+                                    {:else if activePlugins.p[p_name] === "Exiting"}
+                                        <button class="ms-auto btn btn-sm btn-warning" aria-label="Stop plugin" disabled><i class="bi bi-hourglass-split"></i></button>
+                                    {/if}
+                                {:else}
+                                    <span class="badge text-bg-secondary">Not started</span>
+                                {/if}
+                            </div>
+                        </li>
+                    {/each}
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Report info modal -->

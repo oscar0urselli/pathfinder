@@ -69,6 +69,8 @@ class Plugin:
         self._listen_task = asyncio.create_task(self._listen())
         self._shutdown_task = None
         
+        self.socket.send_string(json.dumps("Register"))
+        
     async def _listen(self):
         while True:
             try:
@@ -95,9 +97,9 @@ class Plugin:
                 future = self._pending_request.pop("FormRes")
                 if not future.done():
                     future.set_result(json.loads(data["FormRes"]["data"]))
-            elif data.get("TerminateCmd") is not None:
+            elif data.get("Terminate") is not None:
+                await self.socket.send_string(json.dumps("Exit"))
                 self.exit()
-                break
         
     def toast(self, alert_type: ToastType, text: str):
         return self.socket.send_string(json.dumps({

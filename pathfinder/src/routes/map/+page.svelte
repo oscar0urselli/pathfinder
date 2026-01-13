@@ -3,7 +3,7 @@
     import { onMount } from "svelte";
     import { z } from "zod/v4";
     import { invoke } from "@tauri-apps/api/core";
-    import { loadedReport } from "$lib/state.svelte";
+    import { loadedReport, plugins } from "$lib/state.svelte";
     import type { ArpScanInfo, Plugin } from "$lib/schema";
     import { toast } from "svelte-sonner";
     
@@ -14,10 +14,7 @@
         invoke("run_plugin", { pluginName: event.currentTarget.value });
     }
     
-    let plugins: { [key: string]: Plugin } = $state({});
     onMount(async () => {
-        plugins = await invoke("get_plugins");
-      
         let cy = cytoscape({
             container: document.getElementById("cy"),
             elements: {
@@ -53,7 +50,7 @@
 
 <div class="z-1 position-absolute start-50 translate-middle-x m-2">
     <div class="card border-0 shadow-lg p-2 hstack gap-2">
-        {#each Object.keys(plugins) as p}
+        {#each Object.keys(plugins.p) as p}
             <button onclick={runPlugin} value={p} type="button" class="btn btn-secondary">{p}</button>
         {/each}
     </div>

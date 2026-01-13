@@ -1,3 +1,7 @@
+export type ActivePlugins = {
+    [key: string]: "Running" | "WaitingForm" | "Exiting"
+};
+
 export type PluginFormData = {
     name: string,
     config: PluginFormConfig

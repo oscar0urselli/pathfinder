@@ -8,13 +8,13 @@ use crate::{report::Report, settings::Settings, utils::Toast};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
-    RegisterReq,
+    Register,
     ToastReq { alert_type: u8, text: String },
     ExecuteRawQueryReq { query: String },
     FormReq { data: PluginFormData },
     FormRes { dst: String, data: String },
-    ExitReq,
-    TerminateCmd { plugins: Vec<String> }
+    Exit,
+    Terminate { plugin: String }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -35,7 +35,14 @@ pub struct PluginFormConfig {
     default: Option<String>
 }
 
-pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16) {
+#[derive(Serialize, Deserialize, Clone)]
+pub enum PluginStatus {
+    Running,
+    WaitingForm,
+    Exiting
+}
+
+pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16, active_plugins_arc: Arc<Mutex<HashMap<String, PluginStatus>>>) {
     thread::spawn(move || {
         let ctx = zmq::Context::new();
         let socket = ctx.socket(zmq::ROUTER).unwrap();
@@ -47,9 +54,9 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
             let message = socket.recv_string(0).unwrap().unwrap();
             let command: PluginCommand = serde_json::from_slice(message.as_ref()).unwrap();
 
-            match command {
-                PluginCommand::RegisterReq => {
-                    println!("Register plugin with ID: {}", identity);
+            let new_status = match command {
+                PluginCommand::Register => {
+                    Some(PluginStatus::Running)
                 },
                 PluginCommand::ToastReq { alert_type, text } => {
                     app_handle.emit(
@@ -59,6 +66,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                             text,
                         },
                     ).unwrap();
+                    None
                 },
                 PluginCommand::ExecuteRawQueryReq { query } => {
                     match conn.execute(&query, []) {
@@ -71,19 +79,47 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                             }
                         ).unwrap()
                     };
+                    None
                 },
                 PluginCommand::FormReq { data } => {
                     app_handle.emit("form", &data).unwrap();
+                    Some(PluginStatus::WaitingForm)
                 },
                 PluginCommand::FormRes { dst, data } => {
                     socket.send(dst.as_bytes(), zmq::SNDMORE);
                     socket.send(&message, 0);
+                    Some(PluginStatus::Running)
                 },
-                PluginCommand::ExitReq => {},
-                PluginCommand::TerminateCmd { plugins } => {
-                    
+                PluginCommand::Exit => {
+                    app_handle.emit(
+                        "toast",
+                        &Toast {
+                            alert_type: "warning".to_string(),
+                            text: "Plugin terminated".to_string()
+                        }
+                    ).unwrap();
+                    Some(PluginStatus::Exiting)
+                },
+                PluginCommand::Terminate { plugin } => {
+                    socket.send(plugin.as_bytes(), zmq::SNDMORE);
+                    socket.send(&message, 0);
+                    None
                 }
             };
+            
+            if let Some(s) = new_status {
+                let mut active_plugins = active_plugins_arc.lock().unwrap();
+                if active_plugins.contains_key(&identity) {
+                    *active_plugins.get_mut(&identity).unwrap() = s;
+                }
+                else {
+                    active_plugins.insert(identity, s);
+                }
+                app_handle.emit(
+                    "active_plugins",
+                    active_plugins.clone()
+                ).unwrap();
+            }
         }
     });
 }
@@ -142,7 +178,7 @@ pub fn send_plugin_form_res(app_handle: AppHandle, settings: tauri::State<Arc<Mu
 }
 
 #[tauri::command]
-pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<Option<Report>>>>, settings: tauri::State<Arc<Mutex<Settings>>>, plugins: tauri::State<Arc<Mutex<HashMap<String, Plugin>>>>, plugin_name: String) {
+pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<Option<Report>>>>, settings: tauri::State<Arc<Mutex<Settings>>>, plugins: tauri::State<Arc<Mutex<HashMap<String, Plugin>>>>, active_plugins: tauri::State<Arc<Mutex<HashMap<String, PluginStatus>>>>, plugin_name: String) {
     let loaded_report_arc_clone = Arc::clone(&loaded_report);
     let loaded_report = loaded_report_arc_clone.lock().unwrap().clone();
     
@@ -156,6 +192,8 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
     let plugins_arc_clone = Arc::clone(&plugins);
     let plugins = plugins_arc_clone.lock().unwrap();
     let plugin = plugins.get(&plugin_name).unwrap().clone();
+    
+    let active_plugins_arc_clone = Arc::clone(&active_plugins);
     
     match plugin.config.language {
         PluginLanguage::Py => {
@@ -189,7 +227,6 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                             }
                         }
                         else {
-                            println!("Eleveted command");
                             match Command::new(cmd).output() {
                                 Ok(r) => {
                                     if r.status.success() {
@@ -208,6 +245,9 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                                 Err(err) => app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: err.to_string() }).unwrap()
                             }
                         }
+                        
+                        let mut active_plugins = active_plugins_arc_clone.lock().unwrap();
+                        active_plugins.remove(&plugin_name);
                     });
                 },
                 None => app_handle.emit("toast", &Toast {
@@ -219,4 +259,28 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
         PluginLanguage::Js => {},
         PluginLanguage::Lua => {}
     };
+}
+
+#[tauri::command]
+pub fn terminate_plugin(settings: tauri::State<Arc<Mutex<Settings>>>, plugin: String) {
+    let settings_arc_clone = Arc::clone(&settings);
+    let settings = settings_arc_clone.lock().unwrap();
+    
+    let data = serde_json::to_string(&PluginCommand::Terminate { plugin }).unwrap();
+    
+    let ctx = zmq::Context::new();
+    let socket = ctx.socket(zmq::DEALER).unwrap();
+    socket.set_identity("chomik".as_bytes());
+
+    socket.connect(&format!("tcp://localhost:{}", settings.plugins_server_port)).unwrap();
+    
+    socket.send(data.as_bytes(), 0);
+}
+
+#[tauri::command]
+pub fn get_active_plugins(active_plugins: tauri::State<Arc<Mutex<HashMap<String, PluginStatus>>>>) -> HashMap<String, PluginStatus> {
+    let active_plugins_arc_clone = Arc::clone(&active_plugins);
+    let active_plugins = active_plugins_arc_clone.lock().unwrap();
+    
+    active_plugins.clone()
 }

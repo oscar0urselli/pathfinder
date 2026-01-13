@@ -11,7 +11,7 @@ use tauri::Manager;
 
 use duckdb::{self, params};
 
-use crate::plugin::{Plugin, PluginConfig};
+use crate::plugin::{Plugin, PluginConfig, PluginStatus};
 use crate::settings::Settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -28,6 +28,8 @@ pub fn run() {
             plugin::run_plugin,
             plugin::get_plugins,
             plugin::send_plugin_form_res,
+            plugin::terminate_plugin,
+            plugin::get_active_plugins,
             settings::get_settings,
             settings::set_notifications_pos,
             settings::set_plugins_server_port,
@@ -58,7 +60,11 @@ pub fn run() {
             
             let settings = Settings::load(app.path().app_local_data_dir().unwrap());
             
-            plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port);
+            let active_plugins: Arc<Mutex<HashMap<String, PluginStatus>>> = Arc::new(Mutex::new(HashMap::new()));
+            
+            plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port, Arc::clone(&active_plugins));
+           
+            app.manage(active_plugins);
             
             app.manage(Arc::new(Mutex::new(conn)));
             app.manage(Arc::new(Mutex::new(settings)));

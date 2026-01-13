@@ -1,4 +1,4 @@
-import type { ReportType } from "./schema";
+import type { ActivePlugins, Plugin, ReportType } from "./schema";
 
 export const loadedReport = $state<{
     report?: ReportType
@@ -21,3 +21,11 @@ export const settings: {
         lua: ""
     }
 });
+
+export const activePlugins: {
+    p: ActivePlugins
+} = $state({ p: {} });
+
+export const plugins: { 
+    p: { [key: string]: Plugin }
+} = $state({ p: {} });

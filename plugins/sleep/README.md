@@ -1,0 +1,1 @@
+Plugin created to simulate a running plugin.

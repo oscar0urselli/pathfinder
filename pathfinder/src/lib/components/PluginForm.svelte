@@ -3,7 +3,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
 
-    let { config, plugin, closeForm }: { config: PluginFormConfig, plugin: string, closeForm: any } = $props();
+    let { config, plugin, destroyForm }: { config: PluginFormConfig, plugin: string, destroyForm: any } = $props();
     
     const patterns = {
         ipv4: "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)",
@@ -32,7 +32,14 @@
         await invoke("send_plugin_form_res", { plugin, params: JSON.stringify(fields) });
         
         modal.hide();
-        closeForm();
+        destroyForm();
+    }
+    
+    async function closeForm(event: any) {
+        await invoke("terminate_plugin", { plugin });
+      
+        modal.hide();
+        destroyForm();
     }
     
     let form: HTMLFormElement;
@@ -86,7 +93,7 @@
                 {/each}
             </div>
             <div class="modal-footer">
-                <button onclick={submitForm} type="submit" class="btn btn-success">Run</button>
+                <button onclick={submitForm} type="submit" class="btn btn-success">Send</button>
             </div>
             </form>
         </div>

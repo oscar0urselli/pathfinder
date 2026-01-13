@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { Plugin } from "$lib/schema";
+    import { plugins } from "$lib/state.svelte";
     import { path } from "@tauri-apps/api";
     import { invoke } from "@tauri-apps/api/core";
     import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
@@ -7,7 +8,7 @@
     import { onMount } from "svelte";
 
     async function viewPluginDetails(event: any) {
-        selectedPlugin = plugins[event.currentTarget.value];
+        selectedPlugin = plugins.p[event.currentTarget.value];
         pluginDetailsView = "readme";
         if (selectedPlugin !== undefined) {
             const readmeFile = await path.join("plugins", await path.join(selectedPlugin.folder, "README.md"));
@@ -32,11 +33,6 @@
     let selectedLicense: string = $state("");
     let selectedPlugin: Plugin | undefined = $state(undefined);
     let pluginDetailsView: "readme" | "license" = $state("readme");
-    
-    let plugins: { [key: string]: Plugin } = $state({});
-    onMount(async () => {
-        plugins = await invoke("get_plugins");
-    });
 </script>
 
 <div class="container p-2">
@@ -57,7 +53,7 @@
                 </tr>
             </thead>
             <tbody>
-                {#each Object.values(plugins) as p}
+                {#each Object.values(plugins.p) as p}
                     <tr>
                         <th scope="row">{p.config.name}</th>
                         <td>{p.config.version}</td>
@@ -72,8 +68,8 @@
     </div>
 </div>
 
-<!-- ARP scan details modal -->
-<div class="modal fade" id="plugin-details" data-bs-backdrop="static" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<!-- Plugin details modal -->
+<div class="modal fade" id="plugin-details" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
