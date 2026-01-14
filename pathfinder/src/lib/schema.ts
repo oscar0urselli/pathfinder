@@ -7,17 +7,18 @@ export type PluginFormData = {
     config: PluginFormConfig
 };
 
-export type PluginFormConfig = {
-    [key: string]: {
-        title: string,
-        type: "str" | "ipv4" | "ipv6" | "ipv4_cidr" | "ipv6_cidr" | "mac" | "float" | "int" | "bool",
-        options: string[] | null,
-        min: string | null,
-        max: string | null,
-        step: string | null,
-        regex: string | null,
-        default: string | null
-    }
+export type PluginFormConfig = PluginFormField[][];
+
+export type PluginFormField = {
+    name: string,
+    title: string,
+    type: "str" | "ipv4" | "ipv6" | "ipv4_cidr" | "ipv6_cidr" | "mac" | "float" | "int" | "bool",
+    options: string[] | null,
+    min: string | null,
+    max: string | null,
+    step: string | null,
+    regex: string | null,
+    default: string | null
 };
 
 export type Plugin = {

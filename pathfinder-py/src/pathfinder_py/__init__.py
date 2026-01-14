@@ -116,19 +116,20 @@ class Plugin:
             }
         }))
         
-    async def form(self, config: dict):
-        for f in config.keys():
-            if config[f].get("options") is not None:
-                config[f]["options"] = [str(i) for i in config[f]["options"]]
-            if config[f].get("min") is not None:
-                config[f]["min"] = str(config[f]["min"])
-            if config[f].get("max") is not None:
-                config[f]["max"] = str(config[f]["max"])
-            if config[f].get("step") is not None:
-                config[f]["step"] = str(config[f]["step"])
-            if config[f].get("default") is not None:
-                config[f]["default"] = str(config[f]["default"])
-        
+    async def form(self, config: list):
+        for i in range(len(config)):
+            for j in range(len(config[i])):
+                if config[i][j].get("options") is not None:
+                    config[i][j]["options"] = [str(x) for x in config[i][j]["options"]]
+                if config[i][j].get("min") is not None:
+                    config[i][j]["min"] = str(config[i][j]["min"])
+                if config[i][j].get("max") is not None:
+                    config[i][j]["max"] = str(config[i][j]["max"])
+                if config[i][j].get("step") is not None:
+                    config[i][j]["step"] = str(config[i][j]["step"])
+                if config[i][j].get("default") is not None:
+                    config[i][j]["default"] = str(config[i][j]["default"])
+
         future = asyncio.get_event_loop().create_future()
         self._pending_request["FormRes"] = future
         

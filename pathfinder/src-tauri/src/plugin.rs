@@ -20,11 +20,12 @@ pub enum PluginCommand {
 #[derive(Serialize, Deserialize)]
 pub struct PluginFormData {
     name: String,
-    config: HashMap<String, PluginFormConfig>
+    config: Vec<Vec<PluginFormField>>
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PluginFormConfig {
+pub struct PluginFormField {
+    name: String,
     title: String,
     r#type: String,
     options: Option<Vec<String>>,

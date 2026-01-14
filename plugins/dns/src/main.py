@@ -10,79 +10,103 @@ async def main():
     
     await plugin.toast(pathfinder_py.Plugin.ToastType.INFO, "Plugin running.")
 
-    params = await plugin.form({
-        "host": {
-            "title": "Host",
-            "type": "ipv4"
-        },
-        "port": {
-            "title": "Port",
-            "type": "int",
-            "min": 1,
-            "max": 65535,
-            "default": 53
-        },
-        "protocol": {
-            "title": "Protocol",
-            "type": "str",
-            "options": ["TCP", "UDP", "TLS", "HTTPS"],
-            "default": "TCP"
-        },
-        "domain": {
-            "title": "Domain",
-            "type": "str"
-        },
-        "a": {
-            "title": "A",
-            "type": "bool",
-            "default": True
-        },
-        "aaaa": {
-            "title": "AAAA",
-            "type": "bool",
-            "default": True
-        },
-        "caa": {
-            "title": "CAA",
-            "type": "bool",
-            "default": True
-        },
-        "cname": {
-            "title": "CNAME",
-            "type": "bool",
-            "default": True
-        },
-        "ptr": {
-            "title": "PTR",
-            "type": "bool",
-            "default": True
-        },
-        "mx": {
-            "title": "MX",
-            "type": "bool",
-            "default": True
-        },
-        "ns": {
-            "title": "NS",
-            "type": "bool",
-            "default": True
-        },
-        "srv": {
-            "title": "SRV",
-            "type": "bool",
-            "default": True
-        },
-        "txt": {
-            "title": "TXT",
-            "type": "bool",
-            "default": True
-        },
-        "hinfo": {
-            "title": "HINFO",
-            "type": "bool",
-            "default": True
-        }
-    })
+    params = await plugin.form([
+        [
+            {
+                "name": "host",
+                "title": "Host",
+                "type": "ipv4"
+            },
+            {
+                "name": "port",
+                "title": "Port",
+                "type": "int",
+                "min": 1,
+                "max": 65535,
+                "default": 53
+            },
+            {
+                "name": "protocol",
+                "title": "Protocol",
+                "type": "str",
+                "options": ["TCP", "UDP", "TLS", "HTTPS"],
+                "default": "TCP"
+            }
+        ],
+        [
+            {
+                "name": "domain",
+                "title": "Domain",
+                "type": "str"
+            }
+        ],
+        [
+            {
+                "name": "a",
+                "title": "A",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "aaaa",
+                "title": "AAAA",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "caa",
+                "title": "CAA",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "cname",
+                "title": "CNAME",
+                "type": "bool",
+                "default": True
+            }
+        ],
+        [
+            {
+                "name": "ptr",
+                "title": "PTR",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "mx",
+                "title": "MX",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "ns",
+                "title": "NS",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "srv",
+                "title": "SRV",
+                "type": "bool",
+                "default": True
+            }
+        ],
+        [
+            {
+                "name": "txt",
+                "title": "TXT",
+                "type": "bool",
+                "default": True
+            },
+            {
+                "name": "hinfo",
+                "title": "HINFO",
+                "type": "bool",
+                "default": True
+            }
+        ]
+    ])
     
     res = dns.resolver.make_resolver_at(params["host"], params["port"])
     

@@ -10,27 +10,33 @@ async def main():
     
     await plugin.toast(pathfinder_py.Plugin.ToastType.INFO, "Plugin running.")
 
-    params = await plugin.form({
-        "interface": {
-            "title": "Interface",
-            "type": "str",
-            "options": [i for i in scapy.conf.ifaces]
-        },
-        "network": {
-            "title": "Network",
-            "type": "ipv4_cidr"
-        },
-        "timeout": {
-            "title": "Timeout",
-            "type": "int",
-            "default": 2
-        },
-        "dst_mac": {
-            "title": "Destination MAC",
-            "type": "mac",
-            "default": "ff:ff:ff:ff:ff:ff"
-        }
-    })
+    params = await plugin.form([
+        [
+            {
+                "name": "interface",
+                "title": "Interface",
+                "type": "str",
+                "options": [i for i in scapy.conf.ifaces]
+            },
+            {
+                "name": "network",
+                "title": "Network",
+                "type": "ipv4_cidr"
+            },
+            {
+                "name": "timeout",
+                "title": "Timeout",
+                "type": "int",
+                "default": 2
+            },
+            {
+                "name": "dst_mac",
+                "title": "Destination MAC",
+                "type": "mac",
+                "default": "ff:ff:ff:ff:ff:ff"
+            }
+        ]
+    ])
     
     arp_request = scapy.ARP(pdst=params["network"])
     br = scapy.Ether(dst=params["dst_mac"])
