@@ -29,3 +29,4 @@ bytes = "1.11.0"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 elevated-command = { workspace = true }
+petgraph = { version = "0.8.3", features = ["serde-1"] }

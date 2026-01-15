@@ -7,11 +7,12 @@ mod utils;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
+use petgraph::graph::UnGraph;
 use tauri::Manager;
 
 use duckdb::{self, params};
 
-use crate::plugin::{Plugin, PluginConfig, PluginStatus};
+use crate::plugin::{NetNode, Plugin, PluginConfig, PluginStatus};
 use crate::settings::Settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -30,6 +31,8 @@ pub fn run() {
             plugin::send_plugin_form_res,
             plugin::terminate_plugin,
             plugin::get_active_plugins,
+            plugin::get_net_graph,
+            plugin::add_net_node,
             settings::get_settings,
             settings::set_notifications_pos,
             settings::set_plugins_server_port,
@@ -81,6 +84,8 @@ pub fn run() {
                 });
             }
             app.manage(Arc::new(Mutex::new(plugins)));
+            
+            app.manage(Arc::new(Mutex::new(UnGraph::<NetNode, ()>::new_undirected())));
             
             Ok(())
         })

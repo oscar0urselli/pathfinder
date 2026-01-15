@@ -1,3 +1,22 @@
+export type NetNode = {
+  name: string,
+  type: "Unknown" | "Switch" | "Router" | "Server" | "Pc",
+  interfaces: NetNodeInterface[],
+  services: NetNodeService[]
+};
+
+export type NetNodeInterface = {
+    mac: string,
+    ips: string[]
+};
+
+export type NetNodeService = {
+    ip: string,
+    name: string,
+    port: number,
+    transport_protocol: string
+};
+
 export type ActivePlugins = {
     [key: string]: "Running" | "WaitingForm" | "Exiting"
 };

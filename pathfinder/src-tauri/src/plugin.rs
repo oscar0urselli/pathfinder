@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io::BufRead, path::Path, process::Command as StdCommand, sync::{Arc, Mutex}, thread};
 
 use elevated_command::Command;
+use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
@@ -14,7 +15,9 @@ pub enum PluginCommand {
     FormReq { data: PluginFormData },
     FormRes { dst: String, data: String },
     Exit,
-    Terminate { plugin: String }
+    Terminate { plugin: String },
+    AddNetNode,
+    AddNetEdge
 }
 
 #[derive(Serialize, Deserialize)]
@@ -105,7 +108,9 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     socket.send(plugin.as_bytes(), zmq::SNDMORE);
                     socket.send(&message, 0);
                     None
-                }
+                },
+                PluginCommand::AddNetEdge => { None },
+                PluginCommand::AddNetNode => { None }
             };
             
             if let Some(s) = new_status {
@@ -284,4 +289,51 @@ pub fn get_active_plugins(active_plugins: tauri::State<Arc<Mutex<HashMap<String,
     let active_plugins = active_plugins_arc_clone.lock().unwrap();
     
     active_plugins.clone()
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NetNode {
+    pub name: String,
+    pub r#type: NetNodeType,
+    pub interfaces: Vec<NetNodeInterface>,
+    pub services: Vec<NetNodeService>
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum NetNodeType {
+    Unknown,
+    Switch,
+    Router,
+    Server,
+    Pc
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NetNodeInterface {
+    pub mac: String,
+    pub ips: Vec<String>
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NetNodeService {
+    pub ip: String,
+    pub name: String,
+    pub port: u16,
+    pub transport_protocol: String
+}
+
+#[tauri::command]
+pub fn get_net_graph(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>) -> UnGraph<NetNode, ()> {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    net_graph.clone()
+}
+
+#[tauri::command]
+pub fn add_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, node: NetNode) {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let mut net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    net_graph.add_node(node);
 }
