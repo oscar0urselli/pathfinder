@@ -337,3 +337,19 @@ pub fn add_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, n
     
     net_graph.add_node(node);
 }
+
+#[tauri::command]
+pub fn add_net_edge(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, src: u32, dst: u32) {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let mut net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    net_graph.add_edge(src.into(), dst.into(), ());
+}
+
+#[tauri::command]
+pub fn remove_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, node: u32) {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let mut net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    net_graph.remove_node(node.into());
+}

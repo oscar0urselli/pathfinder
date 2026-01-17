@@ -33,6 +33,8 @@ pub fn run() {
             plugin::get_active_plugins,
             plugin::get_net_graph,
             plugin::add_net_node,
+            plugin::add_net_edge,
+            plugin::remove_net_node,
             settings::get_settings,
             settings::set_notifications_pos,
             settings::set_plugins_server_port,

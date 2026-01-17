@@ -1,8 +1,15 @@
+export type NetGraph = {
+    nodes: NetNode[],
+    node_holes: any[],
+    edge_propery: "undirected",
+    edges: any[]
+};
+
 export type NetNode = {
-  name: string,
-  type: "Unknown" | "Switch" | "Router" | "Server" | "Pc",
-  interfaces: NetNodeInterface[],
-  services: NetNodeService[]
+    name: string,
+    type: "Unknown" | "Switch" | "Router" | "Server" | "Pc",
+    interfaces: NetNodeInterface[],
+    services: NetNodeService[]
 };
 
 export type NetNodeInterface = {
