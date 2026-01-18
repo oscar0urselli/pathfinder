@@ -60,6 +60,14 @@
         toast.success("Inserted new edge to the graph.");
     }
     
+    async function removeEdge(event: any) {
+        await invoke("remove_net_edge", { edge: Number(selectedEdge) });
+        
+        netGraph = await invoke("get_net_graph");
+        
+        toast.warning("Edge removed from the graph");
+    }
+    
     function addNodeInterface(event: any) {
         nodeInterfaces.push({
             mac: "",
@@ -119,6 +127,7 @@
     let addEdgeForm: HTMLFormElement;
     
     let selectedNode: string | null = $state(null);
+    let selectedEdge: string | null = $state(null);
     
     let netGraph: NetGraph = $state({ nodes: [], node_holes: [], edge_propery: "undirected", edges: [] });
     
@@ -143,8 +152,8 @@
             });
         }
         
-        for (const e of netGraph.edges) {
-            sigmaGraph.addEdge(String(e[0]), String(e[1]), { size: 10, color: "#AA00AA" });
+        for (const [i, e] of Object.entries(netGraph.edges)) {
+            sigmaGraph.addEdgeWithKey(i, String(e[0]), String(e[1]), { size: 10, color: "#AA00AA" });
         }
         
         const NodePictogramCustomProgram = createNodeImageProgram({
@@ -155,28 +164,51 @@
         });
         const NodeProgram = createNodeCompoundProgram([NodeCircleProgram, NodePictogramCustomProgram]);
   
+        let clickedNode: null | string = null;
         let hoveredEdge: null | string = null;
+        let clickedEdge: null | string = null;
         const sigmaRenderer = new Sigma(sigmaGraph, sigmaGraphEl, {
             defaultNodeType: "pictogram",
                 nodeProgramClasses: {
                   pictogram: NodeProgram,
             },
+            nodeReducer(node, data) {
+                const res = { ...data };
+                
+                if (node === clickedNode) res.color = "#FF3350";
+                
+                return res;
+            },
             enableEdgeEvents: true,
             edgeReducer(edge, data) {
                 const res = { ...data };
-                if (edge === hoveredEdge) res.color = "#500050";
-                return res
+                
+                if (edge === hoveredEdge || edge === clickedEdge) res.color = "#FF8830";
+                
+                return res;
             }
         });
         
         sigmaRenderer.on("clickNode", ({ node }) => {
             selectedNode = node;
+            clickedNode = node;
+            selectedEdge = null;
+            clickedEdge = null;
+            sigmaRenderer.refresh();
         });
         sigmaRenderer.on("clickEdge", ({ edge }) => {
             selectedNode = null;
+            clickedNode = null;
+            selectedEdge = edge;
+            clickedEdge = edge;
+            sigmaRenderer.refresh();
         });
         sigmaRenderer.on("clickStage", ({}) => {
             selectedNode = null;
+            clickedNode = null;
+            selectedEdge = null;
+            clickedEdge = null;
+            sigmaRenderer.refresh();
         });
         sigmaRenderer.on("enterEdge", ({ edge }) => {
             hoveredEdge = edge;
@@ -214,10 +246,19 @@
     </div>
 </div>
 
+<!-- Node toolbar -->
 <div class="z-1 position-absolute top-50 end-0 m-2 vstack gap-2" hidden={selectedNode === null}>
    	<div class="card border-0 shadow-lg p-2 vstack gap-2">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#edit-node" aria-label="Edit node"><i class="bi bi-pencil-fill"></i></button>
 		<button onclick={removeNode} type="button" class="btn btn-danger" aria-label="Remove node"><i class="bi bi-trash-fill"></i></button>
+	</div>
+</div>
+
+<!-- Edge toolbar -->
+<div class="z-1 position-absolute top-50 end-0 m-2 vstack gap-2" hidden={selectedEdge === null}>
+   	<div class="card border-0 shadow-lg p-2 vstack gap-2">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#edit-edge" aria-label="Edit edge"><i class="bi bi-pencil-fill"></i></button>
+		<button onclick={removeEdge} type="button" class="btn btn-danger" aria-label="Remove edge"><i class="bi bi-trash-fill"></i></button>
 	</div>
 </div>
 

@@ -353,3 +353,11 @@ pub fn remove_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>
     
     net_graph.remove_node(node.into());
 }
+
+#[tauri::command]
+pub fn remove_net_edge(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, edge: u32) {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let mut net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    net_graph.remove_edge(edge.into());
+}
