@@ -295,7 +295,7 @@ pub fn get_active_plugins(active_plugins: tauri::State<Arc<Mutex<HashMap<String,
 pub struct NetNode {
     pub name: String,
     pub r#type: NetNodeType,
-    pub interfaces: Vec<NetNodeInterface>,
+    pub interfaces: HashMap<String, NetNodeInterface>,
     pub services: Vec<NetNodeService>
 }
 
@@ -360,4 +360,13 @@ pub fn remove_net_edge(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>
     let mut net_graph = net_graph_arc_clone.lock().unwrap();
     
     net_graph.remove_edge(edge.into());
+}
+
+#[tauri::command]
+pub fn edit_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, index: u32, node: NetNode) {
+    let net_graph_arc_clone = Arc::clone(&net_graph);
+    let mut net_graph = net_graph_arc_clone.lock().unwrap();
+    
+    let mut_node = net_graph.node_weight_mut(index.into()).unwrap();
+    *mut_node = node;
 }

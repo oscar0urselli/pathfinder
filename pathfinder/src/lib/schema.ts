@@ -8,7 +8,7 @@ export type NetGraph = {
 export type NetNode = {
     name: string,
     type: "Unknown" | "Switch" | "Router" | "Server" | "Pc",
-    interfaces: NetNodeInterface[],
+    interfaces: { [key: string]: NetNodeInterface },
     services: NetNodeService[]
 };
 
