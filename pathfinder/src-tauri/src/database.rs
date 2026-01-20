@@ -1,6 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use duckdb::{Connection, Row};
+use serde::Serialize;
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Emitter};
 
@@ -75,20 +76,36 @@ pub fn get_table(app_handle: AppHandle, conn: tauri::State<Arc<Mutex<Connection>
     }
 }
 
+#[derive(Serialize, Clone)]
+pub struct SqlTableColumn {
+    pub table: String,
+    pub name: String,
+    pub r#type: String
+}
+
 #[tauri::command]
-pub fn get_tables_list(conn: tauri::State<Arc<Mutex<Connection>>>) -> Vec<String> {
+pub fn get_tables_list(conn: tauri::State<Arc<Mutex<Connection>>>) -> HashMap<String, Vec<SqlTableColumn>> {
     let conn_arc_clone = Arc::clone(&conn);
     let conn = conn_arc_clone.lock().unwrap().try_clone().unwrap();
     
-    let mut stmt = conn.prepare("SHOW TABLES;").unwrap();
-    let data = stmt.query_map([], |row| {
-        Ok(row.get::<usize, String>(0).unwrap())
+    let mut stmt = conn.prepare("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema NOT IN ('information_schema', 'pg_catalog');").unwrap();
+    
+    let data = stmt.query_map([], |row| {        
+        Ok(SqlTableColumn{
+            table: row.get(0).unwrap(),
+            name: row.get(1).unwrap(),
+            r#type: row.get(2).unwrap()
+        })
     }).unwrap();
     
-    let mut tables = Vec::new();
-    for i in data {
-        tables.push(i.unwrap());
+    let mut tables = HashMap::new();
+    for r in data {
+        if !tables.contains_key(&r.as_ref().unwrap().table) {
+            tables.insert(r.as_ref().unwrap().table.clone(), Vec::new());
+        }
+        
+        tables.get_mut(&r.as_ref().unwrap().table).unwrap().push(r.unwrap());
     }
     
-    tables
+    tables.clone()
 }
