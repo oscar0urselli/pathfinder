@@ -129,11 +129,15 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.add_node(node);
                     
+                    app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
+                    
                     None 
                 },
                 PluginCommand::AddNetEdge { src, dst } => {
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.add_edge(src.into(), dst.into(), ());
+                    
+                    app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
                     
                     None
                 },
@@ -141,11 +145,15 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.remove_node(node.into());
                     
+                    app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
+                    
                     None
                 },
                 PluginCommand::RemoveNetEdge { edge } => {
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.remove_edge(edge.into());
+                    
+                    app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
                     
                     None
                 },
@@ -153,6 +161,8 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     let mut_node = net_graph.node_weight_mut(index.into()).unwrap();
                     *mut_node = node;
+                    
+                    app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
                     
                     None
                 }
