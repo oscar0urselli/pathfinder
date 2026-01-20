@@ -97,11 +97,18 @@ class Plugin:
                 future = self._pending_request.pop("FormRes")
                 if not future.done():
                     future.set_result(json.loads(data["FormRes"]["data"]))
+            elif data.get("NetGraph") is not None and self._pending_request.get("NetGraph") is not None:
+                future = self._pending_request.pop("NetGraph")
+                if not future.done():
+                    future.set_result(data["NetGraph"]["graph"])
             elif data.get("Terminate") is not None:
                 await self.socket.send_string(json.dumps("Exit"))
                 self.exit()
         
     def toast(self, alert_type: ToastType, text: str):
+        """
+        Show a toast to the user.
+        """
         return self.socket.send_string(json.dumps({
             "ToastReq": {
                 "alert_type": alert_type,
@@ -148,6 +155,74 @@ class Plugin:
         except asyncio.TimeoutError:
             self._pending_request.pop("FormRes")
             return None
+            
+    async def get_net_graph(self):
+        """
+        Get the graph representing the network. The graph is a petgraph structure serialized to JSON.
+        """
+        future = asyncio.get_event_loop().create_future()
+        self._pending_request["NetGraph"] = future
+        
+        await self.socket.send_string(json.dumps("GetNetGraph"))
+        
+        try:
+            response = await future
+            return response
+        except asyncio.TimeoutError:
+            self._pending_request.pop("NetGraph")
+            return None
+            
+    def add_net_node(self, node: dict):
+        """
+        Add a node to the network graph.
+        """
+        return self.socket.send_string(json.dumps({
+            "AddNetNode": {
+                "node": node
+            }
+        }))
+        
+    def add_net_edge(self, src: int, dst: int):
+        """
+        Add edge between to nodes in the network graph.
+        """
+        return self.socket.send_string(json.dumps({
+            "AddNetEdge": {
+                "src": src,
+                "dst": dst
+            }
+        }))
+        
+    def remove_net_node(self, node: int):
+        """
+        Remove node from the network graph.
+        """
+        return self.socket.send_string(json.dumps({
+            "RemoveNetNode": {
+                "node": node
+            }
+        }))
+        
+    def remove_net_edge(self, edge: int):
+        """
+        Remove edge between two nodes from the network graph.
+        """
+        return self.socket.send_string(json.dumps({
+            "RemoveNetEdge": {
+                "edge": edge
+            }
+        }))
+        
+    def update_net_node(self, index: int, node: dict):
+        """
+        Update a specific node of the network graph.
+        """
+        return self.socket.send_string(json.dumps({
+            "UpdateNetNode": {
+                "index": index,
+                "node": node
+            }
+        }))
         
     def exit(self):
         if self._shutdown_task is None:

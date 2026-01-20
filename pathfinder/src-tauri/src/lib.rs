@@ -69,7 +69,9 @@ pub fn run() {
             
             let active_plugins: Arc<Mutex<HashMap<String, PluginStatus>>> = Arc::new(Mutex::new(HashMap::new()));
             
-            plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port, Arc::clone(&active_plugins));
+            let net_graph = Arc::new(Mutex::new(UnGraph::<NetNode, ()>::new_undirected()));
+            
+            plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port, Arc::clone(&active_plugins), Arc::clone(&net_graph));
            
             app.manage(active_plugins);
             
@@ -89,7 +91,7 @@ pub fn run() {
             }
             app.manage(Arc::new(Mutex::new(plugins)));
             
-            app.manage(Arc::new(Mutex::new(UnGraph::<NetNode, ()>::new_undirected())));
+            app.manage(net_graph);
             
             Ok(())
         })

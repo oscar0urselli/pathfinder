@@ -1,0 +1,1 @@
+Plugin created to simulate a running plugin. This plugin is used to test the plugins API.

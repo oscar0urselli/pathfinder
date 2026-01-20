@@ -16,8 +16,13 @@ pub enum PluginCommand {
     FormRes { dst: String, data: String },
     Exit,
     Terminate { plugin: String },
-    AddNetNode,
-    AddNetEdge
+    GetNetGraph,
+    NetGraph { graph: UnGraph<NetNode, ()> },
+    AddNetNode { node: NetNode },
+    AddNetEdge { src: u32, dst: u32 },
+    RemoveNetNode { node: u32 },
+    RemoveNetEdge { edge: u32 },
+    UpdateNetNode { index: u32, node: NetNode }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,7 +51,7 @@ pub enum PluginStatus {
     Exiting
 }
 
-pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16, active_plugins_arc: Arc<Mutex<HashMap<String, PluginStatus>>>) {
+pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16, active_plugins_arc: Arc<Mutex<HashMap<String, PluginStatus>>>, net_graph_arc: Arc<Mutex<UnGraph<NetNode, ()>>>) {
     thread::spawn(move || {
         let ctx = zmq::Context::new();
         let socket = ctx.socket(zmq::ROUTER).unwrap();
@@ -109,8 +114,48 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     socket.send(&message, 0);
                     None
                 },
-                PluginCommand::AddNetEdge => { None },
-                PluginCommand::AddNetNode => { None }
+                PluginCommand::GetNetGraph => {
+                    let net_graph = net_graph_arc.lock().unwrap();
+                    
+                    socket.send(identity.as_bytes(), zmq::SNDMORE);
+                    socket.send(serde_json::to_string(&PluginCommand::NetGraph {
+                        graph: net_graph.clone()
+                    }).unwrap().as_bytes(), 0);
+                    
+                    None
+                },
+                PluginCommand::NetGraph { graph } => { None },
+                PluginCommand::AddNetNode { node } => {
+                    let mut net_graph = net_graph_arc.lock().unwrap();
+                    net_graph.add_node(node);
+                    
+                    None 
+                },
+                PluginCommand::AddNetEdge { src, dst } => {
+                    let mut net_graph = net_graph_arc.lock().unwrap();
+                    net_graph.add_edge(src.into(), dst.into(), ());
+                    
+                    None
+                },
+                PluginCommand::RemoveNetNode { node } => {
+                    let mut net_graph = net_graph_arc.lock().unwrap();
+                    net_graph.remove_node(node.into());
+                    
+                    None
+                },
+                PluginCommand::RemoveNetEdge { edge } => {
+                    let mut net_graph = net_graph_arc.lock().unwrap();
+                    net_graph.remove_edge(edge.into());
+                    
+                    None
+                },
+                PluginCommand::UpdateNetNode { index, node } => {
+                    let mut net_graph = net_graph_arc.lock().unwrap();
+                    let mut_node = net_graph.node_weight_mut(index.into()).unwrap();
+                    *mut_node = node;
+                    
+                    None
+                }
             };
             
             if let Some(s) = new_status {
