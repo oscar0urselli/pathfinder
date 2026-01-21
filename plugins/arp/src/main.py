@@ -38,6 +38,13 @@ async def main():
         ]
     ])
     
+    plugin.add_net_node({
+        "name": scapy.conf.route.route(params["network"])[2],
+        "type": "Unknown",
+        "interfaces": {},
+        "services": []
+    })
+    
     arp_request = scapy.ARP(pdst=params["network"])
     br = scapy.Ether(dst=params["dst_mac"])
     request = br / arp_request
@@ -45,6 +52,19 @@ async def main():
     answered, unanswered = scapy.srp(request, iface=params["interface"], timeout=params["timeout"])
     scans = []
     for i in answered:
+        plugin.add_net_node({
+            "name": i[1].psrc,
+            "type": "Unknown",
+            "interfaces": {},
+            "services": []
+        })
+        
+        net_graph = await plugin.get_net_graph()
+        for n_index, n in enumerate(net_graph["nodes"]):
+            if n["name"] == i[1].psrc:
+                plugin.add_net_edge(0, n_index)
+                break
+        
         scans.append({
             "ipv4": i[1].psrc,
             "mac": i[1].hwsrc
