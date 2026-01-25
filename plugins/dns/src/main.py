@@ -10,7 +10,7 @@ async def main():
     
     await plugin.toast(pathfinder_py.Plugin.ToastType.INFO, "Plugin running.")
 
-    params = await plugin.form([
+    params = await plugin.form("DNS Query settings", [
         [
             {
                 "name": "host",

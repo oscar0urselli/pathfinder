@@ -3,7 +3,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
 
-    let { config, plugin, destroyForm }: { config: PluginFormConfig, plugin: string, destroyForm: any } = $props();
+    let { title, config, plugin, closeFormCallback, hideFormCallback }: { title: string, config: PluginFormConfig, plugin: string, closeFormCallback: any, hideFormCallback: any } = $props();
     
     const patterns = {
         str: undefined,
@@ -39,19 +39,33 @@
         await invoke("send_plugin_form_res", { plugin, params: JSON.stringify(fields) });
         
         modal.hide();
-        destroyForm();
+        closeFormCallback();
     }
     
     async function closeForm(event: any) {
         await invoke("terminate_plugin", { plugin });
       
         modal.hide();
-        destroyForm();
+        closeFormCallback();
+    }
+    
+    async function hideForm(event: any) {
+        modal.hide();
+        hideFormCallback(
+            title,
+            "PluginForm",
+            {
+                "PluginForm": {
+                    config
+                }
+            },
+            plugin
+        );
     }
     
     let form: HTMLFormElement;
     let modalEl: HTMLDivElement;
-    let modal;
+    let modal: any;
     onMount(() => {
         modal = new bootstrap.Modal(modalEl);
         modal.show();
@@ -62,7 +76,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">{plugin}</h1>
+                <h1 class="modal-title fs-5" id="exampleModalLabel">{title} - {plugin}</h1>
                 <button onclick={closeForm} type="button" class="btn-close" aria-label="Close"></button>
             </div>
             <form bind:this={form}>
@@ -104,6 +118,7 @@
                 {/each}
             </div>
             <div class="modal-footer">
+                <button onclick={hideForm} type="submit" class="btn btn-secondary">Hide</button>
                 <button onclick={submitForm} type="submit" class="btn btn-success">Send</button>
             </div>
             </form>

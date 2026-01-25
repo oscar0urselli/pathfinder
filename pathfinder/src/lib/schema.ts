@@ -28,8 +28,14 @@ export type ActivePlugins = {
     [key: string]: "Running" | "WaitingForm" | "Exiting"
 };
 
-export type PluginFormData = {
-    name: string,
+export type Modal = {
+    title: string,
+    type: string | "PluginForm" | "NewReport",
+    data: any,
+    plugin?: string
+};
+
+export type PluginFormType = {
     config: PluginFormConfig
 };
 
@@ -68,22 +74,6 @@ export type Toast = {
     text: string
 };
 
-export type ArpScanIpInfo = {
-    ip: string,
-    network: string,
-    prefix: number
-};
-
-export type ArpScanInterface = {
-    name: string,
-    mac: string,
-    ips: ArpScanIpInfo[]
-};
-
-export type ArpScanInfo = {
-    interfaces: ArpScanInterface[]
-};
-
 export type ReportType = {
     id: string,
     last_access_tsz: number,
@@ -92,44 +82,4 @@ export type ReportType = {
     device: string,
     place: string,
     version: string
-};
-
-export type ArpScan = {
-    id: string,
-    report: string,
-    arp_count: number,
-    duration_ms: number,
-    packet_count: number,
-    interface: string,
-    network: string,
-    timeout: number,
-    interval: number,
-    retry: number,
-    src_ip: string,
-    src_mac: string,
-    dst_mac: string,
-    vlan_id: number | null,
-    scans: {
-        ipv4: string,
-        mac: string,
-        hostname: string,
-        vendor: string,
-        scan: string
-    }[]
-};
-
-export type DnsQuery = {
-    id: string,
-    report: string,
-    host: string,
-    port: number,
-    protocol: string,
-    domain: string,
-    records: {
-        name: string,
-        rtype: string,
-        class: string,
-        ttl: number,
-        data: string
-    }[]
 };

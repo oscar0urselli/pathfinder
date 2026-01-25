@@ -5,15 +5,15 @@ use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::{report::Report, settings::Settings, utils::Toast};
+use crate::{report::Report, settings::Settings, utils::Toast, utils::PluginFormField, utils::Modal, utils::ModalType, utils::ModalData};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
     Register,
-    ToastReq { alert_type: u8, text: String },
-    ExecuteRawQueryReq { query: String },
-    FormReq { data: PluginFormData },
-    FormRes { dst: String, data: String },
+    Toast { alert_type: u8, text: String },
+    ExecuteRawQuery { query: String },
+    ShowForm { title: String, config: Vec<Vec<PluginFormField>> },
+    FormData { dst: String, data: String },
     Exit,
     Terminate { plugin: String },
     GetNetGraph,
@@ -23,25 +23,6 @@ pub enum PluginCommand {
     RemoveNetNode { node: u32 },
     RemoveNetEdge { edge: u32 },
     UpdateNetNode { index: u32, node: NetNode }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PluginFormData {
-    name: String,
-    config: Vec<Vec<PluginFormField>>
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PluginFormField {
-    name: String,
-    title: String,
-    r#type: String,
-    options: Option<Vec<String>>,
-    min: Option<String>,
-    max: Option<String>,
-    step: Option<String>,
-    regex: Option<String>,
-    default: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -67,7 +48,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 PluginCommand::Register => {
                     Some(PluginStatus::Running)
                 },
-                PluginCommand::ToastReq { alert_type, text } => {
+                PluginCommand::Toast { alert_type, text } => {
                     app_handle.emit(
                         "toast",
                         &Toast {
@@ -77,7 +58,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     ).unwrap();
                     None
                 },
-                PluginCommand::ExecuteRawQueryReq { query } => {
+                PluginCommand::ExecuteRawQuery { query } => {
                     match conn.execute(&query, []) {
                         Ok(_) => {},
                         Err(err) => app_handle.emit(
@@ -90,11 +71,16 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     };
                     None
                 },
-                PluginCommand::FormReq { data } => {
-                    app_handle.emit("form", &data).unwrap();
+                PluginCommand::ShowForm { title, config } => {
+                    app_handle.emit("modal", &Modal {
+                        title: title,
+                        r#type: ModalType::PluginForm,
+                        data: ModalData::PluginForm { config },
+                        plugin: Some(identity.clone())
+                    }).unwrap();
                     Some(PluginStatus::WaitingForm)
                 },
-                PluginCommand::FormRes { dst, data } => {
+                PluginCommand::FormData { dst, data } => {
                     socket.send(dst.as_bytes(), zmq::SNDMORE);
                     socket.send(&message, 0);
                     Some(PluginStatus::Running)
@@ -121,7 +107,6 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     socket.send(serde_json::to_string(&PluginCommand::NetGraph {
                         graph: net_graph.clone()
                     }).unwrap().as_bytes(), 0);
-                    
                     None
                 },
                 PluginCommand::NetGraph { graph } => { None },
@@ -224,7 +209,7 @@ pub fn send_plugin_form_res(app_handle: AppHandle, settings: tauri::State<Arc<Mu
     let settings_arc_clone = Arc::clone(&settings);
     let settings = settings_arc_clone.lock().unwrap();
     
-    let data = serde_json::to_string(&PluginCommand::FormRes {
+    let data = serde_json::to_string(&PluginCommand::FormData {
         dst: plugin,
         data: params
     }).unwrap();

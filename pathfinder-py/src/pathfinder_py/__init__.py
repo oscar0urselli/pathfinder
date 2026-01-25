@@ -93,10 +93,10 @@ class Plugin:
             except Exception:
                 continue
             
-            if data.get("FormRes") is not None and self._pending_request.get("FormRes") is not None:
-                future = self._pending_request.pop("FormRes")
+            if data.get("FormData") is not None and self._pending_request.get("FormData") is not None:
+                future = self._pending_request.pop("FormData")
                 if not future.done():
-                    future.set_result(json.loads(data["FormRes"]["data"]))
+                    future.set_result(json.loads(data["FormData"]["data"]))
             elif data.get("NetGraph") is not None and self._pending_request.get("NetGraph") is not None:
                 future = self._pending_request.pop("NetGraph")
                 if not future.done():
@@ -110,7 +110,7 @@ class Plugin:
         Show a toast to the user.
         """
         return self.socket.send_string(json.dumps({
-            "ToastReq": {
+            "Toast": {
                 "alert_type": alert_type,
                 "text": text
             }
@@ -118,12 +118,12 @@ class Plugin:
         
     def execute_raw_query(self, raw_query: str):
         return self.socket.send_string(json.dumps({
-            "ExecuteRawQueryReq": {
+            "ExecuteRawQuery": {
                 "query": raw_query
             }
         }))
         
-    async def form(self, config: list):
+    async def form(self, title: str, config: list):
         for i in range(len(config)):
             for j in range(len(config[i])):
                 if config[i][j].get("options") is not None:
@@ -138,14 +138,12 @@ class Plugin:
                     config[i][j]["default"] = str(config[i][j]["default"])
 
         future = asyncio.get_event_loop().create_future()
-        self._pending_request["FormRes"] = future
+        self._pending_request["FormData"] = future
         
         await self.socket.send_string(json.dumps({
-            "FormReq": {
-                "data": {
-                    "name": self.config["name"],
-                    "config": config
-                }
+            "ShowForm": {
+                "title": title,
+                "config": config
             }
         }))
         
@@ -153,7 +151,7 @@ class Plugin:
             response = await future
             return response
         except asyncio.TimeoutError:
-            self._pending_request.pop("FormRes")
+            self._pending_request.pop("FormData")
             return None
             
     async def get_net_graph(self):

@@ -1,10 +1,10 @@
 <script lang="ts">
-    import type { ReportType } from "$lib/schema";
     import { loadedReport, settings } from "$lib/state.svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
-    import { toast } from "svelte-sonner";
     import { z } from "zod/v4";
+    import { toast } from "svelte-sonner";
+    import type { ReportType } from "$lib/schema";
     
     
     const newReportSchema = z.object({
