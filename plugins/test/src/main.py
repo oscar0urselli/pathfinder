@@ -5,20 +5,11 @@ import pathfinder_py
 async def main():
     plugin = pathfinder_py.Plugin()
     
-    #await asyncio.sleep(10)
-    plugin.add_net_node({
-        "name": "Node A",
-        "type": "Unknown",
-        "interfaces": {},
-        "services": []
-    })
+    res = await plugin.query_raw_sql("SELECT * FROM reports;")
+    print(res)
     
-    plugin.add_net_node({
-        "name": "Node B",
-        "type": "Unknown",
-        "interfaces": {},
-        "services": []
-    })
+    res = await plugin.execute_raw_query("SELECT * FROM reports;")
+    print(res)
     
     plugin.exit()
 

@@ -66,8 +66,8 @@
                     <nav class="nav nav-pills flex-column">
                         <a class="nav-link ms-3" href="#plugins-server">Plugins server</a>
                         <a class="nav-link ms-3" href="#plugins-py">Python</a>
-                        <a class="nav-link ms-3" href="#plugins-js">Node.js</a>
-                        <a class="nav-link ms-3" href="#plugins-lua">Lua</a>
+                        <!--<a class="nav-link ms-3" href="#plugins-js">Node.js</a>
+                        <a class="nav-link ms-3" href="#plugins-lua">Lua</a>-->
                     </nav>
                 </nav>
             </nav>
@@ -106,6 +106,7 @@
                         <input bind:value={pythonPath} type="text" class="form-control" placeholder="no file selected" aria-label="Recipient’s username" aria-describedby="basic-addon2" disabled>
                     </div>
                 </div>
+                <!--
                 <div id="plugins-js">
                     <h5>Node.js</h5>
                     <p>Path to the Node.js interpreter to use:</p>
@@ -122,6 +123,7 @@
                         <input bind:value={luaPath} type="text" class="form-control" placeholder="no file selected" aria-label="Recipient’s username" aria-describedby="basic-addon2" disabled>
                     </div>
                 </div>
+                -->
             </div>
         </div>
     </div>

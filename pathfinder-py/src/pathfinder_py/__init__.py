@@ -97,6 +97,10 @@ class Plugin:
                 future = self._pending_request.pop("FormData")
                 if not future.done():
                     future.set_result(json.loads(data["FormData"]["data"]))
+            elif data.get("QueryRes") is not None and self._pending_request.get("QueryRes") is not None:
+                future = self._pending_request.pop("QueryRes")
+                if not future.done():
+                    future.set_result(data["QueryRes"])
             elif data.get("NetGraph") is not None and self._pending_request.get("NetGraph") is not None:
                 future = self._pending_request.pop("NetGraph")
                 if not future.done():
@@ -116,12 +120,39 @@ class Plugin:
             }
         }))
         
-    def execute_raw_query(self, raw_query: str):
-        return self.socket.send_string(json.dumps({
+    async def execute_raw_query(self, raw_query: str):
+        future = asyncio.get_event_loop().create_future()
+        self._pending_request["QueryRes"] = future
+        
+        await self.socket.send_string(json.dumps({
             "ExecuteRawQuery": {
                 "query": raw_query
             }
         }))
+        
+        try:
+            response = await future
+            return response["count"]
+        except asyncio.TimeoutError:
+            self._pending_request.pop("QueryRes")
+            return None
+        
+    async def query_raw_sql(self, raw_sql: str):
+        future = asyncio.get_event_loop().create_future()
+        self._pending_request["QueryRes"] = future
+        
+        await self.socket.send_string(json.dumps({
+            "QueryRawSql": {
+                "query": raw_sql
+            }
+        }))
+        
+        try:
+            response = await future
+            return response["data"]
+        except asyncio.TimeoutError:
+            self._pending_request.pop("QueryRes")
+            return None
         
     async def form(self, title: str, config: list):
         for i in range(len(config)):

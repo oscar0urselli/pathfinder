@@ -5,13 +5,15 @@ use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::{report::Report, settings::Settings, utils::Toast, utils::PluginFormField, utils::Modal, utils::ModalType, utils::ModalData};
+use crate::{database::query_to_json, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast}};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
     Register,
     Toast { alert_type: u8, text: String },
     ExecuteRawQuery { query: String },
+    QueryRawSql { query: String },
+    QueryRes { count: Option<usize>, data: Option<serde_json::Value>, error: Option<String> },
     ShowForm { title: String, config: Vec<Vec<PluginFormField>> },
     FormData { dst: String, data: String },
     Exit,
@@ -60,17 +62,31 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 },
                 PluginCommand::ExecuteRawQuery { query } => {
                     match conn.execute(&query, []) {
-                        Ok(_) => {},
-                        Err(err) => app_handle.emit(
-                            "toast",
-                            &Toast {
-                                alert_type: "danger".to_string(),
-                                text: err.to_string(),
-                            }
-                        ).unwrap()
+                        Ok(c) => {
+                            socket.send(identity.as_bytes(), zmq::SNDMORE);
+                            socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: Some(c), data: None, error: None }).unwrap().as_bytes(), 0);
+                        },
+                        Err(err) => {
+                            socket.send(identity.as_bytes(), zmq::SNDMORE);
+                            socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: None, error: Some(err.to_string()) }).unwrap().as_bytes(), 0);
+                        }
                     };
                     None
                 },
+                PluginCommand::QueryRawSql { query } => {
+                    match query_to_json(&conn, &query) {
+                        Ok(data) => {
+                            socket.send(identity.as_bytes(), zmq::SNDMORE);
+                            socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: Some(data), error: None }).unwrap().as_bytes(), 0);
+                        },
+                        Err(err) => {
+                            socket.send(identity.as_bytes(), zmq::SNDMORE);
+                            socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: None, error: Some(err.to_string()) }).unwrap().as_bytes(), 0);
+                        }
+                    };
+                    None
+                },
+                PluginCommand::QueryRes { count, data, error } => None,
                 PluginCommand::ShowForm { title, config } => {
                     app_handle.emit("modal", &Modal {
                         title: title,
