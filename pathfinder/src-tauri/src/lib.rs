@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use petgraph::graph::UnGraph;
 use tauri::Manager;
 
-use duckdb::{self, params};
+use duckdb::{self};
 
 use crate::plugin::{NetNode, Plugin, PluginConfig, PluginStatus};
 use crate::settings::Settings;
@@ -57,12 +57,12 @@ pub fn run() {
             
             let conn = duckdb::Connection::open(app.path().app_local_data_dir().unwrap().join("duckdb").join("pathfinder.ddb")).unwrap();
 
-            match conn.execute("CREATE TABLE IF NOT EXISTS reports (id UUID PRIMARY KEY, last_access_tsz TIMESTAMPTZ, title STRING, place STRING, author STRING, device STRING, version STRING);", params![]) {
-                Ok(_) => println!("'reports' table created."),
-                Err(err) => println!("Table 'reports' not created: {}", err)
-            };
+            conn.execute("CREATE TABLE IF NOT EXISTS reports (id UUID PRIMARY KEY, last_access_tsz TIMESTAMPTZ, title STRING, place STRING, author STRING, device STRING, version STRING);", []).unwrap();
             
-            let loaded_report: Option<report::Report> = None; 
+            conn.execute("CREATE SEQUENCE IF NOT EXISTS logs_sequence;", []).unwrap();
+            conn.execute("CREATE TABLE IF NOT EXISTS logs (id UINT64 PRIMARY KEY DEFAULT nextval('logs_sequence'), ts TIMESTAMPTZ, type STRING, message STRING);", []).unwrap();
+            
+            let loaded_report: Option<report::Report> = None;
             app.manage(Arc::new(Mutex::new(loaded_report)));
             
             let settings = Settings::load(app.path().app_local_data_dir().unwrap());

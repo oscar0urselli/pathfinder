@@ -10,7 +10,7 @@
     import { invoke } from "@tauri-apps/api/core";
     import { activePlugins, loadedReport, plugins, settings } from "$lib/state.svelte";
     import { listen } from "@tauri-apps/api/event";
-    import type { PluginFormType, Toast, ActivePlugins, Modal } from "$lib/schema";
+    import type { PluginFormType, ToastType, ActivePlugins, Modal, LogType } from "$lib/schema";
     import { Toaster, toast } from "svelte-sonner";
     import PluginForm from "$lib/components/PluginForm.svelte";
     import { afterNavigate } from "$app/navigation";
@@ -23,21 +23,21 @@
 		plugins.p = await invoke("get_plugins");
 	});
 	
-	listen<Toast>("toast", async (event) => {
-        switch (event.payload.alert_type) {
-            case "success":
+	listen<ToastType>("toast", async (event) => {
+        switch (event.payload.type) {
+            case "Success":
                 toast.success(event.payload.text);
                 break;
-            case "info":
+            case "Info":
                 toast.info(event.payload.text);
                 break;
-            case "warning":
+            case "Warning":
                 toast.warning(event.payload.text);
                 break;
-            case "danger":
+            case "Danger":
                 toast.error(event.payload.text);
                 break;
-            case "none":
+            case "None":
                 toast(event.payload.text);
                 break;
         }
@@ -259,6 +259,42 @@
             </div>
             <div class="modal-footer">
                 <!--<button type="button" class="btn btn-primary">Save changes</button>-->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs console modal -->
+<div class="modal fade" id="logs-console" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Logs console</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {#await invoke("get_table", { table: "logs" })}
+                <div class="spinner-grow" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                {:then records}
+                    {#each (records as LogType[]) as r}
+                        <div class="hstack gap-2">
+                            {#if r.type === "Error"}
+                            <span class="badge text-bg-danger mb-3">{r.type}</span>
+                            {:else if r.type === "Warn"}
+                            <span class="badge text-bg-warning mb-3">{r.type}</span>
+                            {:else if r.type === "Info"}
+                            <span class="badge text-bg-info mb-3">{r.type}</span>
+                            {:else if r.type === "Debug"}
+                            <span class="badge text-bg-success mb-3">{r.type}</span>
+                            {:else if r.type === "Trace"}
+                            <span class="badge text-bg-secondary mb-3">{r.type}</span>
+                            {/if}
+                            <pre class="mb-0 pb-3">[{new Date(r.ts / 1000).toISOString()}]# {r.message}</pre>
+                        </div>
+                    {/each}
+                {/await}
             </div>
         </div>
     </div>

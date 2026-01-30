@@ -60,7 +60,7 @@
                     <option value={t} selected={t === "reports"}>{t}</option>
                 {/each}
             </select>
-            {#if selectedTable !== "reports"}
+            {#if selectedTable !== "reports" && selectedTable !== "logs"}
                 <select bind:value={selectedReport} class="form-select" aria-label="Default select example">
                     <option value="" selected={loadedReport.report === undefined}>All</option>
                     {#each reports as r}
@@ -88,7 +88,7 @@
                 </thead>
                 <tbody class="table-group-divider">
                     {#each (records as any[]) as r}
-                        {#if r["report"] === selectedReport || selectedReport === "" || selectedTable === "reports"}
+                        {#if r["report"] === selectedReport || selectedReport === "" || selectedTable === "reports" || selectedTable === "logs"}
                             <tr>
                                 {#each tables[selectedTable] as c}
                                     {#if selectedColumns.includes(c.name)}

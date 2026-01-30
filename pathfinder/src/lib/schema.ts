@@ -69,9 +69,16 @@ export type PluginConfig = {
     params: any
 }
 
-export type Toast = {
-    alert_type: "success" | "info" | "warning" | "danger" | "none",
+export type ToastType = {
+    type: "Success" | "Info" | "Warning" | "Danger" | "None",
     text: string
+};
+
+export type LogType = {
+    id: number,
+    ts: number,
+    type: "Error" | "Warn" | "Info" | "Debug" | "Trace",
+    message: string
 };
 
 export type ReportType = {

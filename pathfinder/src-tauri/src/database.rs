@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Emitter};
 
-use crate::utils::Toast;
+use crate::utils::{Toast, ToastType};
 
 
 fn column_to_value(row: &Row, i: usize) -> Value {
@@ -68,7 +68,7 @@ pub fn get_table(app_handle: AppHandle, conn: tauri::State<Arc<Mutex<Connection>
         Ok(data) => Some(data),
         Err(err) => {
             app_handle.emit("toast", &Toast {
-                alert_type: "danger".to_string(),
+                r#type: ToastType::Danger,
                 text: err
             }).unwrap();
             None

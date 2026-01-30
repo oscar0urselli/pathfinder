@@ -5,12 +5,13 @@ use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::{database::query_to_json, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast}};
+use crate::{database::query_to_json, report::Report, settings::Settings, utils::{Log, LogType, Modal, ModalData, ModalType, PluginFormField, Toast, ToastType}};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
     Register,
-    Toast { alert_type: u8, text: String },
+    Toast { r#type: ToastType, text: String },
+    Log { r#type: LogType, message: String },
     ExecuteRawQuery { query: String },
     QueryRawSql { query: String },
     QueryRes { count: Option<usize>, data: Option<serde_json::Value>, error: Option<String> },
@@ -48,25 +49,29 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
 
             let new_status = match command {
                 PluginCommand::Register => {
+                    Log::new(LogType::Info, format!("Plugin `{}` registered.", &identity)).insert(&conn).unwrap();
                     Some(PluginStatus::Running)
                 },
-                PluginCommand::Toast { alert_type, text } => {
-                    app_handle.emit(
-                        "toast",
-                        &Toast {
-                            alert_type: Toast::alert_type_to_string(alert_type).unwrap(),
-                            text,
-                        },
-                    ).unwrap();
+                PluginCommand::Toast { r#type, text } => {
+                    match app_handle.emit("toast", &Toast { r#type, text }) {
+                        Ok(_) => Log::new(LogType::Info, format!("Plugin `{}` emit toast.", &identity)).insert(&conn).unwrap(),
+                        Err(err) => Log::new(LogType::Error, format!("Plugin `{}` emit toast raise error: {}.", &identity, err.to_string())).insert(&conn).unwrap()
+                    };
+                    None
+                },
+                PluginCommand::Log { r#type, message } => {
+                    Log::new(r#type, format!("Plugin `{}`: {}", &identity, message)).insert(&conn).unwrap();
                     None
                 },
                 PluginCommand::ExecuteRawQuery { query } => {
                     match conn.execute(&query, []) {
                         Ok(c) => {
+                            Log::new(LogType::Info, format!("Plugin '{}' execute raw query `{}` returns: {}", &identity, &query, c)).insert(&conn).unwrap();
                             socket.send(identity.as_bytes(), zmq::SNDMORE);
                             socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: Some(c), data: None, error: None }).unwrap().as_bytes(), 0);
                         },
                         Err(err) => {
+                            Log::new(LogType::Error, format!("Plugin '{}' execute raw query `{}` raise error: {}", &identity, &query, err.to_string())).insert(&conn).unwrap();
                             socket.send(identity.as_bytes(), zmq::SNDMORE);
                             socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: None, error: Some(err.to_string()) }).unwrap().as_bytes(), 0);
                         }
@@ -76,10 +81,12 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 PluginCommand::QueryRawSql { query } => {
                     match query_to_json(&conn, &query) {
                         Ok(data) => {
+                            Log::new(LogType::Info, format!("Plugin '{}' query to database `{}`.", &identity, &query)).insert(&conn).unwrap();
                             socket.send(identity.as_bytes(), zmq::SNDMORE);
                             socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: Some(data), error: None }).unwrap().as_bytes(), 0);
                         },
                         Err(err) => {
+                            Log::new(LogType::Error, format!("Plugin '{}' query to database `{}` raise error: {}", &identity, &query, err.to_string())).insert(&conn).unwrap();
                             socket.send(identity.as_bytes(), zmq::SNDMORE);
                             socket.send(serde_json::to_string(&PluginCommand::QueryRes { count: None, data: None, error: Some(err.to_string()) }).unwrap().as_bytes(), 0);
                         }
@@ -88,35 +95,35 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 },
                 PluginCommand::QueryRes { count, data, error } => None,
                 PluginCommand::ShowForm { title, config } => {
-                    app_handle.emit("modal", &Modal {
-                        title: title,
-                        r#type: ModalType::PluginForm,
-                        data: ModalData::PluginForm { config },
-                        plugin: Some(identity.clone())
-                    }).unwrap();
+                    Log::new(LogType::Info, format!("Plugin `{}` emit form modal.", &identity)).insert(&conn).unwrap();
+                    match app_handle.emit("modal", &Modal { title: title, r#type: ModalType::PluginForm, data: ModalData::PluginForm { config }, plugin: Some(identity.clone()) }) {
+                        Ok(_) => {},
+                        Err(err) => { Log::new(LogType::Error, format!("Plugin `{}` emit form modal raise error: {}.", &identity, err.to_string())).insert(&conn).unwrap(); }
+                    };
                     Some(PluginStatus::WaitingForm)
                 },
                 PluginCommand::FormData { dst, data } => {
+                    Log::new(LogType::Info, format!("Form data to plugin `{}`: {}", &dst, &data)).insert(&conn).unwrap();
                     socket.send(dst.as_bytes(), zmq::SNDMORE);
                     socket.send(&message, 0);
                     Some(PluginStatus::Running)
                 },
                 PluginCommand::Exit => {
-                    app_handle.emit(
-                        "toast",
-                        &Toast {
-                            alert_type: "warning".to_string(),
-                            text: "Plugin terminated".to_string()
-                        }
-                    ).unwrap();
+                    Log::new(LogType::Warn, format!("Plugin `{}` is exiting.", &identity)).insert(&conn).unwrap();
+                    match app_handle.emit("toast", &Toast { r#type: ToastType::Warning, text: "Plugin terminated".to_string() }) {
+                        Ok(_) => {},
+                        Err(err) => { Log::new(LogType::Error, format!("Plugin `{}` emit toast raise error: {}.", &identity, err.to_string())).insert(&conn).unwrap(); }
+                    };
                     Some(PluginStatus::Exiting)
                 },
                 PluginCommand::Terminate { plugin } => {
+                    Log::new(LogType::Warn, format!("Terminate plugin `{}`.", &plugin)).insert(&conn).unwrap();
                     socket.send(plugin.as_bytes(), zmq::SNDMORE);
                     socket.send(&message, 0);
                     None
                 },
                 PluginCommand::GetNetGraph => {
+                    Log::new(LogType::Info, format!("Plugin `{}` get network graph data.", &identity)).insert(&conn).unwrap();
                     let net_graph = net_graph_arc.lock().unwrap();
                     
                     socket.send(identity.as_bytes(), zmq::SNDMORE);
@@ -127,6 +134,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 },
                 PluginCommand::NetGraph { graph } => { None },
                 PluginCommand::AddNetNode { node } => {
+                    Log::new(LogType::Info, format!("Plugin `{}` add node to network graph.", &identity)).insert(&conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.add_node(node);
                     
@@ -135,6 +143,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     None 
                 },
                 PluginCommand::AddNetEdge { src, dst } => {
+                    Log::new(LogType::Info, format!("Plugin `{}` add edge between `{}` and `{}` to network graph.", &identity, src, dst)).insert(&conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.add_edge(src.into(), dst.into(), ());
                     
@@ -143,6 +152,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     None
                 },
                 PluginCommand::RemoveNetNode { node } => {
+                    Log::new(LogType::Info, format!("Plugin `{}` remove node `{}` from network graph.", &identity, node)).insert(&conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.remove_node(node.into());
                     
@@ -151,6 +161,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     None
                 },
                 PluginCommand::RemoveNetEdge { edge } => {
+                    Log::new(LogType::Info, format!("Plugin `{}` remove edge `{}` from network graph.", &identity, edge)).insert(&conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     net_graph.remove_edge(edge.into());
                     
@@ -159,6 +170,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     None
                 },
                 PluginCommand::UpdateNetNode { index, node } => {
+                    Log::new(LogType::Info, format!("Plugin `{}` update node `{}` of network graph.", &identity, index)).insert(&conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
                     let mut_node = net_graph.node_weight_mut(index.into()).unwrap();
                     *mut_node = node;
@@ -177,10 +189,7 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                 else {
                     active_plugins.insert(identity, s);
                 }
-                app_handle.emit(
-                    "active_plugins",
-                    active_plugins.clone()
-                ).unwrap();
+                app_handle.emit("active_plugins", active_plugins.clone()).unwrap();
             }
         }
     });
@@ -245,7 +254,7 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
     let loaded_report = loaded_report_arc_clone.lock().unwrap().clone();
     
     if loaded_report.is_none() {
-        app_handle.emit("toast", &Toast { alert_type: "warning".to_string(), text: "No report loaded. You must create and/or load a report first.".to_string() }).unwrap()
+        app_handle.emit("toast", &Toast { r#type: ToastType::Warning, text: "No report loaded. You must create and/or load a report first.".to_string() }).unwrap()
     }
     
     let settings_arc_clone = Arc::clone(&settings);
@@ -273,7 +282,7 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                             match cmd.output() {
                                 Ok(r) => {
                                     if r.status.success() {
-                                        app_handle.emit("toast", &Toast { alert_type: "success".to_string(), text: "Plugin successfully terminated.".to_string() }).unwrap()
+                                        app_handle.emit("toast", &Toast { r#type: ToastType::Success, text: "Plugin successfully terminated.".to_string() }).unwrap()
                                     }
                                     else {
                                         let mut stderr = String::new();
@@ -282,17 +291,17 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                                                 stderr.push_str(&line);
                                             }
                                         }
-                                        app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: stderr }).unwrap()
+                                        app_handle.emit("toast", &Toast { r#type: ToastType::Danger, text: stderr }).unwrap()
                                     }
                                 },
-                                Err(err) => app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: err.to_string() }).unwrap()
+                                Err(err) => app_handle.emit("toast", &Toast { r#type: ToastType::Danger, text: err.to_string() }).unwrap()
                             }
                         }
                         else {
                             match Command::new(cmd).output() {
                                 Ok(r) => {
                                     if r.status.success() {
-                                        app_handle.emit("toast", &Toast { alert_type: "success".to_string(), text: "Plugin successfully terminated.".to_string() }).unwrap()
+                                        app_handle.emit("toast", &Toast { r#type: ToastType::Success, text: "Plugin successfully terminated.".to_string() }).unwrap()
                                     }
                                     else {
                                         let mut stderr = String::new();
@@ -301,10 +310,10 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                                                 stderr.push_str(&line);
                                             }
                                         }
-                                        app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: stderr }).unwrap()
+                                        app_handle.emit("toast", &Toast { r#type: ToastType::Danger, text: stderr }).unwrap()
                                     }
                                 },
-                                Err(err) => app_handle.emit("toast", &Toast { alert_type: "danger".to_string(), text: err.to_string() }).unwrap()
+                                Err(err) => app_handle.emit("toast", &Toast { r#type: ToastType::Danger, text: err.to_string() }).unwrap()
                             }
                         }
                         
@@ -313,7 +322,7 @@ pub fn run_plugin(app_handle: AppHandle, loaded_report: tauri::State<Arc<Mutex<O
                     });
                 },
                 None => app_handle.emit("toast", &Toast {
-                    alert_type: "danger".to_string(),
+                    r#type: ToastType::Danger,
                     text: "Python interpreter path has not been configured.".to_string()
                 }).unwrap()
             }

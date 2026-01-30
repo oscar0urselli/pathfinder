@@ -7,7 +7,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Emitter};
 
-use crate::utils::Toast;
+use crate::utils::{Toast, ToastType};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Settings {
@@ -98,17 +98,17 @@ pub fn set_python_interpreter(app_handle: AppHandle, settings: tauri::State<Arc<
                     .save(app_handle.path().app_local_data_dir().unwrap())
                     .unwrap();
                 app_handle.emit("toast", &Toast {
-                    alert_type: "success".to_string(),
+                    r#type: ToastType::Success,
                     text: "Python interpreter updated.".to_string()
                 }).unwrap();
             },
             false => app_handle.emit("toast", &Toast {
-                alert_type: "danger".to_string(),
+                r#type: ToastType::Danger,
                 text: "The provided Python interpreter doesn't exists.".to_string()
             }).unwrap()
         },
         Err(err) => app_handle.emit("toast", &Toast {
-            alert_type: "danger".to_string(),
+            r#type: ToastType::Danger,
             text: err.to_string()
         }).unwrap()
     };
@@ -129,17 +129,17 @@ pub fn set_node_js_interpreter(app_handle: AppHandle, settings: tauri::State<Arc
                     .save(app_handle.path().app_local_data_dir().unwrap())
                     .unwrap();
                 app_handle.emit("toast", &Toast {
-                    alert_type: "success".to_string(),
+                    r#type: ToastType::Success,
                     text: "Node.js interpreter updated.".to_string()
                 }).unwrap();
             },
             false => app_handle.emit("toast", &Toast {
-                alert_type: "danger".to_string(),
+                r#type: ToastType::Danger,
                 text: "The provided Node.js interpreter doesn't exists.".to_string()
             }).unwrap()
         },
         Err(err) => app_handle.emit("toast", &Toast {
-            alert_type: "danger".to_string(),
+            r#type: ToastType::Danger,
             text: err.to_string()
         }).unwrap()
     };
@@ -160,17 +160,17 @@ pub fn set_lua_interpreter(app_handle: AppHandle, settings: tauri::State<Arc<Mut
                     .save(app_handle.path().app_local_data_dir().unwrap())
                     .unwrap();
                 app_handle.emit("toast", &Toast {
-                    alert_type: "success".to_string(),
+                    r#type: ToastType::Success,
                     text: "Lua interpreter updated.".to_string()
                 }).unwrap();
             },
             false => app_handle.emit("toast", &Toast {
-                alert_type: "danger".to_string(),
+                r#type: ToastType::Danger,
                 text: "The provided Lua interpreter doesn't exists.".to_string()
             }).unwrap()
         },
         Err(err) => app_handle.emit("toast", &Toast {
-            alert_type: "danger".to_string(),
+            r#type: ToastType::Danger,
             text: err.to_string()
         }).unwrap()
     };

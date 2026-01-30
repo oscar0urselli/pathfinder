@@ -1,7 +1,7 @@
 import __main__
 import argparse
 import asyncio
-from enum import Enum
+from enum import StrEnum
 import json
 import os
 import sys
@@ -12,12 +12,19 @@ import zmq.asyncio
 
 
 class Plugin:
-    class ToastType(int, Enum):
-        NONE = 0
-        SUCCESS = 1
-        INFO = 2
-        WARNING = 3
-        DANGER = 4
+    class ToastType(StrEnum):
+        NONE = "None"
+        SUCCESS = "Success"
+        INFO = "Info"
+        WARNING = "Warning"
+        DANGER = "Danger"
+        
+    class LogType(StrEnum):
+        ERROR = "Error"
+        WARN = "Warn"
+        INFO = "Info"
+        DEBUG = "Debug"
+        TRACE = "Trace"
     
     class Config:
         schema = {
@@ -115,8 +122,16 @@ class Plugin:
         """
         return self.socket.send_string(json.dumps({
             "Toast": {
-                "alert_type": alert_type,
+                "type": alert_type,
                 "text": text
+            }
+        }))
+        
+    def log(self, log_type: LogType, message: str):
+        return self.socket.send_string(json.dumps({
+            "Log": {
+                "type": log_type,
+                "message": message
             }
         }))
         
