@@ -2,6 +2,7 @@ mod plugin;
 mod report;
 mod database;
 mod settings;
+mod log;
 mod utils;
 
 use std::collections::HashMap;
@@ -43,6 +44,7 @@ pub fn run() {
             settings::set_python_interpreter,
             settings::set_node_js_interpreter,
             settings::set_lua_interpreter,
+            log::get_logs,
             database::get_table,
             database::get_tables_list
         ])

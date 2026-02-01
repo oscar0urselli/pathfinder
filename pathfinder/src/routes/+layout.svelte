@@ -141,6 +141,24 @@
 	    await invoke("terminate_plugin", { plugin: p });
 		modalsStack.splice(modalsStack.findIndex((v) => v.plugin === p), 1);
 	}
+	
+	let logs: LogType[] = $state([]);
+	let logsForm: HTMLFormElement;
+	async function getLogs(event: any) {
+	    let formData = new FormData(logsForm);
+					
+		let selectedLogsTypes: string[] = [];
+		if (formData.get("Error") !== null) selectedLogsTypes.push("Error");
+		if (formData.get("Warn") !== null) selectedLogsTypes.push("Warn");
+		if (formData.get("Info") !== null) selectedLogsTypes.push("Info");
+		if (formData.get("Debug") !== null) selectedLogsTypes.push("Debug");
+		if (formData.get("Trace") !== null) selectedLogsTypes.push("Trace");
+	    
+		logs = await invoke("get_logs", {
+			timeFrame: Number(formData.get("time-frame")),
+			types: selectedLogsTypes
+		});
+	}
 </script>
 
 <svelte:head>
@@ -171,7 +189,7 @@
             {/if}
         </button>
 		<button onclick={updateActivePlugins} type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#plugins-manager" aria-label="Report"><i class="bi bi-cpu-fill"></i></button>
-        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#logs-console" aria-label="Report"><i class="bi bi-terminal-fill"></i></button>
+        <button onclick={getLogs} type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#logs-console" aria-label="Report"><i class="bi bi-terminal-fill"></i></button>
 	</div>
 </div>
 
@@ -273,28 +291,59 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {#await invoke("get_table", { table: "logs" })}
-                <div class="spinner-grow" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                {:then records}
-                    {#each (records as LogType[]) as r}
-                        <div class="hstack gap-2">
-                            {#if r.type === "Error"}
-                            <span class="badge text-bg-danger mb-3">{r.type}</span>
-                            {:else if r.type === "Warn"}
-                            <span class="badge text-bg-warning mb-3">{r.type}</span>
-                            {:else if r.type === "Info"}
-                            <span class="badge text-bg-info mb-3">{r.type}</span>
-                            {:else if r.type === "Debug"}
-                            <span class="badge text-bg-success mb-3">{r.type}</span>
-                            {:else if r.type === "Trace"}
-                            <span class="badge text-bg-secondary mb-3">{r.type}</span>
-                            {/if}
-                            <pre class="mb-0 pb-3">[{new Date(r.ts / 1000).toISOString()}]# {r.message}</pre>
+                <form bind:this={logsForm}>
+                <div class="row">
+                    <div class="col mb-3">
+                        <select onchange={getLogs} name="time-frame" class="form-select" aria-label="Time frame">
+                            <option value="300">5 hours</option>
+                            <option value="180">3 hours</option>
+                            <option value="60">1 hour</option>
+                            <option value="30">30 minutes</option>
+                            <option value="15" selected>15 minutes</option>
+                            <option value="5">5 minutes</option>
+                            <option value="1">1 minute</option>
+                        </select>
+                    </div>
+                    <div class="col mb-3 hstack gap-3">
+                        <div class="form-check">
+                            <input onchange={getLogs} name="Error" class="form-check-input" type="checkbox" value="" id="checkChecked" checked>
+                            <label class="form-check-label" for="checkChecked">Error</label>
                         </div>
-                    {/each}
-                {/await}
+                        <div class="form-check">
+                            <input onchange={getLogs} name="Warn" class="form-check-input" type="checkbox" value="" id="checkChecked" checked>
+                            <label class="form-check-label" for="checkChecked">Warn</label>
+                        </div>
+                        <div class="form-check">
+                            <input onchange={getLogs} name="Info" class="form-check-input" type="checkbox" value="" id="checkChecked" checked>
+                            <label class="form-check-label" for="checkChecked">Info</label>
+                        </div>
+                        <div class="form-check">
+                            <input onchange={getLogs} name="Debug" class="form-check-input" type="checkbox" value="" id="checkChecked" checked>
+                            <label class="form-check-label" for="checkChecked">Debug</label>
+                        </div>
+                        <div class="form-check">
+                            <input onchange={getLogs} name="Trace" class="form-check-input" type="checkbox" value="" id="checkChecked" checked>
+                            <label class="form-check-label" for="checkChecked">Trace</label>
+                        </div>
+                    </div>
+                </div>
+                </form>
+                {#each logs as r}
+                    <div class="hstack gap-2">
+                        {#if r.type === "Error"}
+                        <span class="badge text-bg-danger mb-3">{r.type}</span>
+                        {:else if r.type === "Warn"}
+                        <span class="badge text-bg-warning mb-3">{r.type}</span>
+                        {:else if r.type === "Info"}
+                        <span class="badge text-bg-info mb-3">{r.type}</span>
+                        {:else if r.type === "Debug"}
+                        <span class="badge text-bg-success mb-3">{r.type}</span>
+                        {:else if r.type === "Trace"}
+                        <span class="badge text-bg-secondary mb-3">{r.type}</span>
+                        {/if}
+                        <pre class="mb-0 pb-3">[{new Date(r.ts / 1000).toISOString()}]# {r.message}</pre>
+                    </div>
+                {/each}
             </div>
         </div>
     </div>

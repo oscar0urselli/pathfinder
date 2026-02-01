@@ -76,9 +76,7 @@ pub fn new_report(
 }
 
 #[tauri::command]
-pub fn list_reports(
-    conn: tauri::State<Arc<Mutex<duckdb::Connection>>>,
-) -> Result<Vec<Report>, String> {
+pub fn list_reports(conn: tauri::State<Arc<Mutex<duckdb::Connection>>>) -> Result<Vec<Report>, String> {
     let conn_arc_clone = Arc::clone(&conn);
     let conn = conn_arc_clone.lock().unwrap().try_clone().unwrap();
 
