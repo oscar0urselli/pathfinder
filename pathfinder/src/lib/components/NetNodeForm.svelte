@@ -95,8 +95,8 @@
         nodeServices[event.currentTarget.getAttribute("data-service-index")].transport_protocol = event.currentTarget.value;
     }
     
-    let nodeInterfaces: { [key: string]: NetNodeInterface } = $derived(node !== undefined ? node.interfaces : {});
-    let nodeServices: NetNodeService[] = $derived(node !== undefined ? node.services : []);
+    let nodeInterfaces: { [key: string]: NetNodeInterface } = $state(node !== undefined ? node.interfaces : {});
+    let nodeServices: NetNodeService[] = $state(node !== undefined ? node.services : []);
     let nodeForm: HTMLFormElement;
 </script>
 

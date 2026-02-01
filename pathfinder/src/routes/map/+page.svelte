@@ -3,7 +3,7 @@
     import { z } from "zod/v4";
     import { invoke } from "@tauri-apps/api/core";
     import { loadedReport, plugins } from "$lib/state.svelte";
-    import type { ArpScanInfo, NetGraph, NetNode, NetNodeInterface, NetNodeService, Plugin } from "$lib/schema";
+    import type { NetGraph, NetNode, NetNodeInterface, NetNodeService, Plugin } from "$lib/schema";
     import { toast } from "svelte-sonner";
     import Graph from "graphology";
     import Sigma from "sigma";
