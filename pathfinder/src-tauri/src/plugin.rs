@@ -1,11 +1,11 @@
-use std::{collections::HashMap, io::BufRead, path::Path, process::Command as StdCommand, sync::{Arc, Mutex}, thread};
+use std::{collections::HashMap, fs, io::BufRead, path::{Path, PathBuf}, process::Command as StdCommand, sync::{Arc, Mutex}, thread};
 
 use elevated_command::Command;
 use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{database::query_to_json, log::{Log, LogType}, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast, ToastType}};
+use crate::{database::query_to_json, log::{Log, LogType}, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast, ToastType, copy_dir_all}};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
@@ -227,6 +227,28 @@ pub fn get_plugins(plugins: tauri::State<Arc<Mutex<HashMap<String, Plugin>>>>) -
     let plugins = plugins_arc_clone.lock().unwrap();
     
     plugins.clone()
+}
+
+#[tauri::command]
+pub fn import_plugin_from_folder(app_handle: AppHandle, plugins: tauri::State<Arc<Mutex<HashMap<String, Plugin>>>>, path: String) {
+    let plugins_arc_clone = Arc::clone(&plugins);
+    let mut plugins = plugins_arc_clone.lock().unwrap();
+    
+    let path = PathBuf::from(path);
+    let dir = path.file_name().unwrap();
+    
+    copy_dir_all(&path, app_handle.path().app_local_data_dir().unwrap().join("plugins").join(dir)).unwrap();
+    
+    for p in fs::read_dir(app_handle.path().app_local_data_dir().unwrap().join("plugins")).unwrap() {
+        let cnt = fs::read_to_string(p.as_ref().unwrap().path().join("config.json")).unwrap();
+        let config: PluginConfig = serde_json::from_str(&cnt).unwrap();
+        
+        plugins.insert(config.name.clone(), Plugin {
+            path: p.as_ref().unwrap().path().to_str().unwrap().to_owned(),
+            folder: p.unwrap().file_name().to_str().unwrap().to_owned(),
+            config: config
+        });
+    }
 }
 
 #[tauri::command]

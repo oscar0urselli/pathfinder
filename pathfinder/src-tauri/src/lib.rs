@@ -29,6 +29,7 @@ pub fn run() {
             report::load_report,
             plugin::run_plugin,
             plugin::get_plugins,
+            plugin::import_plugin_from_folder,
             plugin::send_plugin_form_res,
             plugin::terminate_plugin,
             plugin::get_active_plugins,

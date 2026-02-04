@@ -1,0 +1,14 @@
+[project]
+name = "traceroute"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pathfinder-py",
+    "scapy>=2.7.0",
+    "sqlglot>=28.9.0",
+]
+
+[tool.uv.sources]
+pathfinder-py = { path = "../../pathfinder-py", editable = true }

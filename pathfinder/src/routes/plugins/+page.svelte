@@ -3,6 +3,7 @@
     import { plugins } from "$lib/state.svelte";
     import { path } from "@tauri-apps/api";
     import { invoke } from "@tauri-apps/api/core";
+    import { open } from "@tauri-apps/plugin-dialog";
     import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
     import { openPath } from "@tauri-apps/plugin-opener";
     import { onMount } from "svelte";
@@ -29,6 +30,15 @@
         }
     }
     
+    async function importPluginFromFolder(event: any) {
+        const folder = await open({
+            directory: true
+        });
+        await invoke("import_plugin_from_folder", { path: folder });
+        
+        plugins.p = await invoke("get_plugins");
+    }
+    
     let selectedReadme: string = $state("");
     let selectedLicense: string = $state("");
     let selectedPlugin: Plugin | undefined = $state(undefined);
@@ -38,7 +48,7 @@
 <div class="container p-2">
     <div class="hstack mb-4">
         <h3>Plugins</h3>
-        <button class="ms-auto btn btn-lg btn-success shadow-lg" aria-label="Add plugin"><i class="bi bi-plus-lg"></i></button>
+        <button onclick={importPluginFromFolder} class="ms-auto btn btn-lg btn-success shadow-lg" aria-label="Add plugin"><i class="bi bi-plus-lg"></i></button>
     </div>
     <div class="card p-2">
         <table class="table">
