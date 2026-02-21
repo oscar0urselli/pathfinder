@@ -2,26 +2,48 @@ export type NetGraph = {
     nodes: NetNode[],
     node_holes: any[],
     edge_propery: "undirected",
-    edges: any[]
+    edges: NetEdge[]
+};
+
+export type NetEdge = {
+    a_node: string,
+    a_interface: string | null,
+    a_service: string | null,
+    a_ip: string | null,
+    a_port: number,
+    b_node: string,
+    b_interface: string | null,
+    b_service: string | null,
+    b_ip: string | null,
+    b_port: number
 };
 
 export type NetNode = {
     name: string,
-    type: "Unknown" | "Switch" | "Router" | "Server" | "Pc",
+    type: "Unknown" | "Switch" | "Router" | "Server" | "Database" | "Pc",
     interfaces: { [key: string]: NetNodeInterface },
     services: NetNodeService[]
 };
 
 export type NetNodeInterface = {
     mac: string,
-    ips: string[]
+    ips: IpCidr[]
+};
+
+export type NetNodeServiceBinding = {
+    ip: string,
+    port: number,
+    protocol: "Tcp" | "Udp"
 };
 
 export type NetNodeService = {
-    ip: string,
     name: string,
-    port: number,
-    transport_protocol: string
+    bindings: NetNodeServiceBinding[]
+};
+
+export type IpCidr = {
+    ip: string,
+    mask: number
 };
 
 export type ActivePlugins = {

@@ -5,7 +5,7 @@ use petgraph::graph::UnGraph;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{database::query_to_json, log::{Log, LogType}, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast, ToastType, copy_dir_all}};
+use crate::{database::query_to_json, log::{Log, LogType}, net_graph::{NetEdge, NetNode}, report::Report, settings::Settings, utils::{Modal, ModalData, ModalType, PluginFormField, Toast, ToastType, copy_dir_all}};
 
 #[derive(Serialize, Deserialize)]
 pub enum PluginCommand {
@@ -20,9 +20,9 @@ pub enum PluginCommand {
     Exit,
     Terminate { plugin: String },
     GetNetGraph,
-    NetGraph { graph: UnGraph<NetNode, ()> },
+    NetGraph { graph: UnGraph<NetNode, NetEdge> },
     AddNetNode { node: NetNode },
-    AddNetEdge { src: u32, dst: u32 },
+    AddNetEdge { src: u32, dst: u32, edge: NetEdge },
     RemoveNetNode { node: u32 },
     RemoveNetEdge { edge: u32 },
     UpdateNetNode { index: u32, node: NetNode }
@@ -35,7 +35,7 @@ pub enum PluginStatus {
     Exiting
 }
 
-pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16, active_plugins_arc: Arc<Mutex<HashMap<String, PluginStatus>>>, net_graph_arc: Arc<Mutex<UnGraph<NetNode, ()>>>) {
+pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port: u16, active_plugins_arc: Arc<Mutex<HashMap<String, PluginStatus>>>, net_graph_arc: Arc<Mutex<UnGraph<NetNode, NetEdge>>>) {
     thread::spawn(move || {
         let ctx = zmq::Context::new();
         let socket = ctx.socket(zmq::ROUTER).unwrap();
@@ -142,10 +142,10 @@ pub fn init_plugins_server(app_handle: AppHandle, conn: duckdb::Connection, port
                     
                     None 
                 },
-                PluginCommand::AddNetEdge { src, dst } => {
+                PluginCommand::AddNetEdge { src, dst, edge } => {
                     Log::create(LogType::Info, format!("Plugin `{}` add edge between `{}` and `{}` to network graph.", &identity, src, dst), &conn).unwrap();
                     let mut net_graph = net_graph_arc.lock().unwrap();
-                    net_graph.add_edge(src.into(), dst.into(), ());
+                    net_graph.add_edge(src.into(), dst.into(), edge);
                     
                     app_handle.emit("updateNetGraph", &net_graph.clone()).unwrap();
                     
@@ -376,84 +376,4 @@ pub fn get_active_plugins(active_plugins: tauri::State<Arc<Mutex<HashMap<String,
     let active_plugins = active_plugins_arc_clone.lock().unwrap();
     
     active_plugins.clone()
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct NetNode {
-    pub name: String,
-    pub r#type: NetNodeType,
-    pub interfaces: HashMap<String, NetNodeInterface>,
-    pub services: Vec<NetNodeService>
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub enum NetNodeType {
-    Unknown,
-    Switch,
-    Router,
-    Server,
-    Pc
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct NetNodeInterface {
-    pub mac: String,
-    pub ips: Vec<String>
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct NetNodeService {
-    pub ip: String,
-    pub name: String,
-    pub port: u16,
-    pub transport_protocol: String
-}
-
-#[tauri::command]
-pub fn get_net_graph(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>) -> UnGraph<NetNode, ()> {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    net_graph.clone()
-}
-
-#[tauri::command]
-pub fn add_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, node: NetNode) {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let mut net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    net_graph.add_node(node);
-}
-
-#[tauri::command]
-pub fn add_net_edge(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, src: u32, dst: u32) {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let mut net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    net_graph.add_edge(src.into(), dst.into(), ());
-}
-
-#[tauri::command]
-pub fn remove_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, node: u32) {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let mut net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    net_graph.remove_node(node.into());
-}
-
-#[tauri::command]
-pub fn remove_net_edge(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, edge: u32) {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let mut net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    net_graph.remove_edge(edge.into());
-}
-
-#[tauri::command]
-pub fn edit_net_node(net_graph: tauri::State<Arc<Mutex<UnGraph<NetNode, ()>>>>, index: u32, node: NetNode) {
-    let net_graph_arc_clone = Arc::clone(&net_graph);
-    let mut net_graph = net_graph_arc_clone.lock().unwrap();
-    
-    let mut_node = net_graph.node_weight_mut(index.into()).unwrap();
-    *mut_node = node;
 }

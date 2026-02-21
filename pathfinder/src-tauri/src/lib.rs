@@ -4,6 +4,7 @@ mod database;
 mod settings;
 mod log;
 mod utils;
+mod net_graph;
 
 use std::collections::HashMap;
 use std::fs;
@@ -13,7 +14,8 @@ use tauri::Manager;
 
 use duckdb::{self};
 
-use crate::plugin::{NetNode, Plugin, PluginConfig, PluginStatus};
+use crate::net_graph::{NetEdge, NetNode};
+use crate::plugin::{Plugin, PluginConfig, PluginStatus};
 use crate::settings::Settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,12 +35,12 @@ pub fn run() {
             plugin::send_plugin_form_res,
             plugin::terminate_plugin,
             plugin::get_active_plugins,
-            plugin::get_net_graph,
-            plugin::add_net_node,
-            plugin::add_net_edge,
-            plugin::remove_net_node,
-            plugin::remove_net_edge,
-            plugin::edit_net_node,
+            net_graph::get_net_graph,
+            net_graph::add_net_node,
+            net_graph::add_net_edge,
+            net_graph::remove_net_node,
+            net_graph::remove_net_edge,
+            net_graph::edit_net_node,
             settings::get_settings,
             settings::set_notifications_pos,
             settings::set_plugins_server_port,
@@ -72,7 +74,7 @@ pub fn run() {
             
             let active_plugins: Arc<Mutex<HashMap<String, PluginStatus>>> = Arc::new(Mutex::new(HashMap::new()));
             
-            let net_graph = Arc::new(Mutex::new(UnGraph::<NetNode, ()>::new_undirected()));
+            let net_graph = Arc::new(Mutex::new(UnGraph::<NetNode, NetEdge>::new_undirected()));
             
             plugin::init_plugins_server(app.app_handle().clone(), conn.try_clone().unwrap(), settings.plugins_server_port, Arc::clone(&active_plugins), Arc::clone(&net_graph));
            
